@@ -234,9 +234,9 @@ class EdgeTTS:
 
         audio_duration = float(metadata['format']['duration'])
         if audio_duration > duration:
-            # Leave a small margin so FFmpeg never has to cut the tail of the
-            # narration when it bounds the scene video to an exact frame count.
-            target_duration = max(0.1, duration - 0.02)
+            # Leave headroom for MP3 encoder delay/padding and frame boundaries.
+            # This avoids treating container padding as overlong spoken narration.
+            target_duration = max(0.1, duration - 0.15)
             speedup = audio_duration / target_duration
             # Preserve every word. Only allow a modest speed-up; fail rather than
             # silently truncate narration or make speech unnaturally fast.
