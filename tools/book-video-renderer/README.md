@@ -41,6 +41,10 @@ The default voice is `zh-CN-YunxiNeural`; use `--tts-voice` to select another Ed
 
 **Important limitations:** Edge TTS is an online, third-party service, not an offline engine or a guaranteed production API. It requires network access and may change or throttle. Narration text is sent to that service. The provider is optional and replaceable; the default renderer still performs no TTS network calls. Subtitle timing remains scene-proportional in this iteration, so it is not yet word-level aligned to the generated audio.
 
+### Render the sample in GitHub Actions (no local computer required)
+
+After this PR's workflow is available on the selected branch, open **GitHub → Actions → Book Video Renderer tests → Run workflow**, select `feat/book-video-renderer-mvp`, and set `render_tts_sample` to `true`. This is an explicit opt-in because it sends the book narration to the external Edge TTS service. The workflow uploads `final.mp4`, `manifest.json`, and `subtitles.srt` as the `naval-test-001-edge-tts` artifact; generated files are not committed to Git. The default value is `false`, so normal CI runs never call the speech service.
+
 The MVP accepts 1080x1920 / 9:16 / 30 fps only; output is H.264/yuv420p with AAC when real audio is supplied. Schema validation is followed by unique-ID and timing checks. Scene durations are rounded to the nearest frame. Total duration must fall within ±8% of the declared target; it is never silently stretched. The Naval example has 113 seconds of scenes against a 120-second target and produces a 113-second video.
 
 Output layout:
