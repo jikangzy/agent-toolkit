@@ -76,9 +76,12 @@ jobs:
           sample = json.loads(source.read_text(encoding="utf-8"))
           original_narration = sample["scenes"][0]["narration"]
           sample["scenes"] = sample["scenes"][:1]
+          assert len(sample["scenes"]) == 1
+          assert sample["scenes"][0]["duration_seconds"] == 8
           sample["format"]["target_duration_seconds"] = sum(
               scene["duration_seconds"] for scene in sample["scenes"]
           )
+          assert sample["format"]["target_duration_seconds"] == 8
           assert sample["scenes"][0]["narration"] == original_narration
           Path("/tmp/naval-test-001-edge-tts-sample/storyboard.json").write_text(
               json.dumps(sample, ensure_ascii=False, indent=2) + "\n",
