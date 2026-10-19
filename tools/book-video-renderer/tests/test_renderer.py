@@ -115,6 +115,24 @@ class UnitTests(unittest.TestCase):
         self.assertNotEqual(r.fingerprint([scene, 'provider1']), r.fingerprint([other, 'provider1']))
         self.assertNotEqual(r.fingerprint([scene, 'provider1']), r.fingerprint([scene, 'provider2']))
 
+    def test_visual_asset_is_normalized_to_vertical_frame(self):
+        source = self.root/'square.png'
+        target = self.root/'normalized.png'
+        r.Image.new('RGB', (400, 400), (30, 60, 90)).save(source)
+        r.normalize_image_asset(source, target)
+        with r.Image.open(target) as image:
+            self.assertEqual(image.size, (1080, 1920))
+            self.assertEqual(image.mode, 'RGB')
+
+    def test_find_visual_asset_rejects_ambiguous_extensions(self):
+        assets = self.root/'assets'
+        assets.mkdir()
+        r.Image.new('RGB', (10, 10), (0, 0, 0)).save(assets/'scene_001.png')
+        self.assertEqual(r.find_visual_asset(assets, 'scene_001'), assets/'scene_001.png')
+        r.Image.new('RGB', (10, 10), (0, 0, 0)).save(assets/'scene_001.jpg')
+        with self.assertRaisesRegex(r.RenderError, 'multiple visual assets'):
+            r.find_visual_asset(assets, 'scene_001')
+
     def test_no_tts_is_explicit(self):
         provider = r.NoTTS()
         self.assertIn('NO audio', provider.fallback)
@@ -274,6 +292,34 @@ class IntegrationTests(unittest.TestCase):
         clip.write_bytes(b'corrupt')
         third = r.render(source, output, FONT)
         self.assertEqual(sum(not e['cache_hit'] for e in third['scenes']), 1)
+
+    def test_supplied_image_asset_is_used_and_invalidates_only_its_scene_cache(self):
+        data = fixture()
+        source = self.root/'storyboard.json'
+        source.write_text(json.dumps(data, ensure_ascii=False))
+        original = source.read_bytes()
+        assets = self.root/'images'
+        assets.mkdir()
+        image_path = assets/'scene_001.png'
+        r.Image.new('RGB', (640, 640), (25, 80, 120)).save(image_path)
+        output = self.root/'asset-output'
+
+        first = r.render(source, output, FONT, assets_dir=assets)
+        self.assertEqual(first['status'], 'complete')
+        self.assertFalse(first['scenes'][0]['placeholder'])
+        self.assertEqual(first['scenes'][0]['visual_asset'], 'scene_001.png')
+        self.assertTrue(all(scene['placeholder'] for scene in first['scenes'][1:]))
+        self.assertTrue(any('scene_002' in item for item in first['fallbacks']))
+        self.assertEqual(source.read_bytes(), original)
+
+        second = r.render(source, output, FONT, assets_dir=assets)
+        self.assertTrue(all(scene['cache_hit'] for scene in second['scenes']))
+
+        r.Image.new('RGB', (640, 640), (120, 40, 20)).save(image_path)
+        third = r.render(source, output, FONT, assets_dir=assets)
+        self.assertFalse(third['scenes'][0]['cache_hit'])
+        self.assertTrue(all(scene['cache_hit'] for scene in third['scenes'][1:]))
+        self.assertEqual(source.read_bytes(), original)
 
     def test_aac_adapter_and_reject_truncation(self):
         scene = fixture()['scenes'][0]

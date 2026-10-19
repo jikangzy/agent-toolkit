@@ -25,13 +25,14 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
 2. Create an output directory and a manifest recording scene status.
 3. Generate narration audio per scene or as a full track using the configured TTS provider.
 4. Obtain word/sentence timestamps from TTS where available; otherwise align from scene timings.
-5. Generate visual assets:
-   - `image`: generate a still image, then animate with slow pan/zoom.
-   - `video`: call the configured video-generation provider.
-   - `title_card` / `quote_card`: render deterministically with local graphics tooling.
-   - `broll`: use the configured stock or generation provider.
-6. Normalize assets to target resolution/fps/aspect ratio.
-7. Render one MP4 per scene.
+5. Generate visual assets with the image-generation tool available in the current agent environment, if one is available:
+   - Save each still as `<run-dir>/images/<scene_id>.png` (PNG, JPG/JPEG, or WebP are accepted).
+   - Follow the scene's `visual.prompt` and `negative_prompt`; prefer vertical 9:16, no text/logos/watermarks, and a centered subject that can survive center-cropping.
+   - Never ask the image model to write the title/subtitles into the image; the renderer overlays the exact storyboard `onscreen_text`.
+   - If the current environment cannot generate or save images, do not claim that it did; continue with labeled placeholders and report the limitation.
+   - AI video generation is not implemented in the current CLI; use still images with gentle pan/zoom for now.
+6. Normalize supplied assets to 1080x1920; missing assets fall back to labeled placeholders and are listed in the manifest.
+7. Render one MP4 per scene, passing `--assets-dir <run-dir>/images`.
 8. Concatenate all scenes in storyboard order.
 9. Add narration, optional background music, and subtitles.
 10. Run QC:
@@ -44,7 +45,7 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
 
 ## Current repository MVP
 
-The checked-in CLI currently renders **program-generated placeholder visuals**, not AI-generated images or video. It can optionally synthesize real Chinese narration through Edge TTS. Do not describe a default no-audio render as a finished narrated video.
+The checked-in CLI accepts optional **agent-generated still images** via `--assets-dir` and renders them with gentle pan/zoom. It does not call an image-generation API itself; if image assets are unavailable, it uses clearly labeled placeholders. AI video clips and automatic background-music generation are not implemented. It can optionally synthesize real Chinese narration through Edge TTS. Do not describe a default no-audio render as a finished narrated video.
 
 Run commands from the repository root:
 
@@ -52,8 +53,11 @@ Run commands from the repository root:
 python -m pip install -r tools/book-video-renderer/requirements.txt
 python tools/book-video-renderer/renderer.py \
   examples/book-video/naval-test-001/storyboard.json \
-  --output output/<run-id>
+  --output output/<run-id> \
+  --assets-dir output/<run-id>/images
 ```
+
+Before rendering, generate and save per-scene images to `output/<run-id>/images/scene_001.png`, etc., if the agent's image-generation tool supports saving them. Do not commit those generated assets. Missing images are explicitly recorded as placeholder fallbacks.
 
 The default `--tts-provider none` is offline and produces no audio track. To explicitly enable online Chinese narration:
 

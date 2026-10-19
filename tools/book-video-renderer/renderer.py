@@ -15,12 +15,12 @@ import time
 from typing import Protocol
 
 from jsonschema import Draft202012Validator
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / 'schemas/book-video/storyboard.schema.json'
-VERSION = 'mvp-1'
+VERSION = 'mvp-2'
 WIDTH, HEIGHT, FPS = 1080, 1920, 30
 
 
@@ -287,6 +287,14 @@ def placeholder(scene, font_path, path):
     label_font = ImageFont.truetype(str(font_path), 30)
     draw.text((100, 110), f"{scene['id']} | {scene['visual']['type']}", font=label_font, fill='#b8c7d6')
     draw.text((100, 175), 'MVP PLACEHOLDER', font=label_font, fill='#b8c7d6')
+    image = draw_onscreen_text(image, scene, font_path)
+    draw = ImageDraw.Draw(image)
+    draw.text((100, 1620), '程序生成占位画面 · 非真实素材', font=label_font, fill='#b8c7d6')
+    image.save(path)
+
+
+def draw_onscreen_text(image, scene, font_path):
+    draw = ImageDraw.Draw(image)
     for size in range(58, 23, -2):
         font = ImageFont.truetype(str(font_path), size)
         lines = wrap(scene['onscreen_text'], font, WIDTH-240)
@@ -296,10 +304,56 @@ def placeholder(scene, font_path, path):
         raise RenderError('onscreen_text too long to fit without truncation')
     y = 730 - len(lines) * (size+22) // 2
     for line in lines:
-        draw.text(((WIDTH-font.getlength(line))/2, y), line, font=font, fill='#fff4db')
+        draw.text(((WIDTH-font.getlength(line))/2, y), line, font=font,
+                  fill='#fff4db', stroke_width=max(2, size//18), stroke_fill='#111820')
         y += size+22
-    draw.text((100, 1620), '程序生成占位画面 · 非真实素材', font=label_font, fill='#b8c7d6')
-    image.save(path)
+    return image
+
+
+def find_visual_asset(assets_dir, scene_id):
+    if assets_dir is None:
+        return None
+    extensions = ('.png', '.jpg', '.jpeg', '.webp')
+    matches = [Path(assets_dir)/(scene_id + ext) for ext in extensions
+               if (Path(assets_dir)/(scene_id + ext)).is_file()]
+    if len(matches) > 1:
+        raise RenderError(
+            f'{scene_id}: multiple visual assets found; keep exactly one of '
+            'PNG, JPG, JPEG, or WebP.'
+        )
+    return matches[0] if matches else None
+
+
+def normalize_image_asset(source, destination):
+    try:
+        with Image.open(source) as opened:
+            opened = ImageOps.exif_transpose(opened)
+            if opened.mode in ('RGBA', 'LA') or 'transparency' in opened.info:
+                rgba = opened.convert('RGBA')
+                background = Image.new('RGBA', rgba.size, (24, 32, 42, 255))
+                background.alpha_composite(rgba)
+                image = background.convert('RGB')
+            else:
+                image = opened.convert('RGB')
+            fitted = ImageOps.fit(
+                image, (WIDTH, HEIGHT), method=Image.Resampling.LANCZOS,
+                centering=(0.5, 0.5)
+            )
+            fitted.save(destination, format='PNG')
+    except Exception as exc:
+        raise RenderError(f'Cannot load visual asset {source}: {exc}') from exc
+
+
+def prepare_visual(scene, font_path, destination, visual_asset=None):
+    if visual_asset is None:
+        placeholder(scene, font_path, destination)
+        return True
+    normalize_image_asset(visual_asset, destination)
+    with Image.open(destination) as opened:
+        image = opened.convert('RGB')
+    image = draw_onscreen_text(image, scene, font_path)
+    image.save(destination)
+    return False
 
 
 def retry(action, attempts, on_failure):
@@ -327,10 +381,10 @@ def verify_video(path, duration, audio):
             'audio_codec': 'aac' if tracks else None, 'duration_seconds': float(info['format']['duration'])}
 
 
-def encode_scene(scene, data, font, work, provider):
+def encode_scene(scene, data, font, work, provider, visual_asset=None):
     image, clip = work/'visual.png', work/'clip.mp4'
     duration = frame_count(scene) / FPS
-    placeholder(scene, font, image)
+    prepare_visual(scene, font, image, visual_asset)
     audio = provider.synthesize(scene['id'], scene['narration'], data['voice'], duration, work)
     # Gentle push-in of the generated card, with large safe margins for text.
     zoom = f"zoompan=z='1.015+0.025*on/{frame_count(scene)}':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d={frame_count(scene)}:s=1080x1920:fps=30"
@@ -348,7 +402,7 @@ def encode_scene(scene, data, font, work, provider):
     return clip, audio is not None
 
 
-def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None):
+def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None):
     if attempts < 1 or attempts > 10:
         raise RenderError('attempts must be between 1 and 10')
     source, output = Path(source).resolve(), Path(output).resolve()
@@ -361,6 +415,13 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
     try:
         source_hash = digest(source)
         data = load_storyboard(source)
+        assets_dir = Path(assets_dir).resolve() if assets_dir is not None else None
+        if assets_dir is not None and not assets_dir.is_dir():
+            raise RenderError(f'Visual assets directory does not exist: {assets_dir}')
+        visual_assets = {
+            scene['id']: find_visual_asset(assets_dir, scene['id'])
+            for scene in data['scenes']
+        }
         for tool in ('ffmpeg', 'ffprobe'):
             if not shutil.which(tool):
                 raise RenderError(f'Missing executable: {tool}')
@@ -380,10 +441,26 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         manifest.update(storyboard_sha256=source_hash, scene_order=[s['id'] for s in data['scenes']],
                         font=str(font_path), tts_provider=type(provider).__name__,
                         tts_voice=getattr(provider, 'voice_id', None),
-                        speech_status=getattr(provider, 'speech_status', 'provided_audio'))
-        manifest['fallbacks'] = ['All visual types use program-generated placeholders with a gentle push-in.',
-                                 'Subtitles use scene-proportional timing, not speech alignment.',
-                                 'Transitions use cuts; requested transitions are recorded per scene.']
+                        speech_status=getattr(provider, 'speech_status', 'provided_audio'),
+                        visual_assets_supplied=assets_dir is not None)
+        missing_assets = [scene['id'] for scene in data['scenes'] if visual_assets[scene['id']] is None]
+        manifest['visual_assets'] = {
+            scene['id']: ({
+                'file': visual_assets[scene['id']].name,
+                'sha256': digest(visual_assets[scene['id']])
+            } if visual_assets[scene['id']] is not None else None)
+            for scene in data['scenes']
+        }
+        manifest['fallbacks'] = []
+        if missing_assets:
+            manifest['fallbacks'].append(
+                'Program-generated placeholder visuals used for scenes without supplied assets: '
+                + ', '.join(missing_assets)
+            )
+        manifest['fallbacks'].extend([
+            'Subtitles use scene-proportional timing, not speech alignment.',
+            'Transitions use cuts; requested transitions are recorded per scene.'
+        ])
         if provider.fallback:
             manifest['fallbacks'].append(provider.fallback)
         if getattr(provider, 'provider_notice', None):
@@ -395,16 +472,21 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         scenes_dir.mkdir(exist_ok=True)
         cache.mkdir(exist_ok=True)
         settings = {'version': VERSION, 'implementation': digest(Path(__file__)), 'font': digest(font_path),
-                    'tts': provider.cache_key, 'voice': data['voice'], 'ffmpeg': command(['ffmpeg', '-version']).splitlines()[0]}
+                    'tts': provider.cache_key, 'voice': data['voice'], 'ffmpeg': command(['ffmpeg', '-version']).splitlines()[0],
+                    'assets_dir_supplied': assets_dir is not None}
         clips, audio_flags = [], []
         for scene in data['scenes']:
+            visual_asset = visual_assets[scene['id']]
+            visual_asset_sha = digest(visual_asset) if visual_asset is not None else None
             entry = {'id': scene['id'], 'status': 'pending', 'attempts': 0, 'errors': [],
-                     'visual_type': scene['visual']['type'], 'placeholder': True,
+                     'visual_type': scene['visual']['type'], 'placeholder': visual_asset is None,
+                     'visual_asset': visual_asset.name if visual_asset is not None else None,
+                     'visual_asset_sha256': visual_asset_sha,
                      'motion_requested': scene['visual'].get('motion'), 'transition_requested': scene.get('transition', 'cut'),
                      'narration': scene['narration'], 'onscreen_text': scene['onscreen_text']}
             manifest['scenes'].append(entry)
             save_json(manifest_path, manifest)
-            work = cache / fingerprint([scene, settings])
+            work = cache / fingerprint([scene, settings, visual_asset_sha or 'placeholder-v1'])
             work.mkdir(exist_ok=True)
             cached, meta = work/'clip.mp4', work/'complete.json'
             def failure(attempt, error):
@@ -413,7 +495,7 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 save_json(manifest_path, manifest)
             def produce():
                 entry['attempts'] += 1
-                clip, audio = encode_scene(scene, data, font_path, work, provider)
+                clip, audio = encode_scene(scene, data, font_path, work, provider, visual_asset)
                 save_json(meta, {'sha256': digest(clip), 'audio': audio})
                 return clip, audio
             valid_cache = False
@@ -484,6 +566,7 @@ def main():
     parser.add_argument('storyboard', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--font', help='CJK font covering all storyboard characters')
+    parser.add_argument('--assets-dir', type=Path, help='Optional directory of generated images named <scene_id>.png/.jpg/.jpeg/.webp')
     parser.add_argument('--attempts', type=int, default=3)
     parser.add_argument('--tts-audio-dir', type=Path, help='Real narration WAV files named scene_001.wav, etc.')
     parser.add_argument('--tts-provider', choices=['none', 'edge-tts'], default='none', help='Optional speech synthesis provider; default none keeps rendering offline')
@@ -491,7 +574,8 @@ def main():
     args = parser.parse_args()
     try:
         result = render(args.storyboard, args.output, args.font, args.attempts,
-                        speech_dir=args.tts_audio_dir, tts_provider=args.tts_provider, tts_voice=args.tts_voice)
+                        speech_dir=args.tts_audio_dir, tts_provider=args.tts_provider,
+                        tts_voice=args.tts_voice, assets_dir=args.assets_dir)
         print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f'Render failed: {exc}', file=sys.stderr)

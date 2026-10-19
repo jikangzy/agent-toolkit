@@ -1,6 +1,6 @@
 # Book Video Renderer MVP
 
-Offline Python CLI for the repository's locked storyboard contract. It validates the existing JSON Schema, preserves scene order and exact narration/on-screen text, renders per-scene placeholder cards with gentle push-in, creates Chinese SRT subtitles, burns them into the final video, and verifies output with ffprobe.
+Python CLI for the repository's locked storyboard contract. It validates the existing JSON Schema, preserves scene order and exact narration/on-screen text, accepts optional per-scene AI-generated still images, falls back to labeled placeholder cards for missing images, adds gentle push-in motion, creates Chinese SRT subtitles, burns them into the final video, and verifies output with ffprobe. The CLI does not itself call an image-generation API; the agent or user supplies generated images.
 
 ## Setup
 
@@ -23,6 +23,33 @@ python tools/book-video-renderer/renderer.py \
 ```
 
 Optional: `--font /path/to/NotoSansCJKsc-Regular.otf`, `--attempts 3` (1–10).
+
+### Use AI-generated images
+
+Generate one still image per scene with the image-generation tool available to your agent, then save each image under an ignored output directory using the scene ID as its filename:
+
+```text
+output/naval-test-001/images/
+  scene_001.png
+  scene_002.png
+  scene_003.png
+  ...
+```
+
+Use vertical 9:16 compositions where possible. Ask the image model for **no text, logos, watermarks, or fake book-cover lettering**; the renderer overlays the storyboard's exact `onscreen_text` itself. Center the key subject because non-9:16 images are center-cropped to 1080×1920.
+
+Then render with the asset directory:
+
+```bash
+python tools/book-video-renderer/renderer.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural
+```
+
+Accepted image formats: PNG, JPG/JPEG, WebP. Use exactly one image per scene ID. Missing images fall back to clearly labeled placeholders and are listed in `manifest.json`; invalid or ambiguous assets fail clearly. Asset SHA-256 hashes participate in per-scene cache keys, so replacing one image regenerates only that scene. Image generation still happens outside the CLI, using the agent's available image tool; the renderer never pretends a placeholder is a generated image.
 
 ### Optional real Chinese TTS
 
@@ -64,7 +91,7 @@ All generated data stays under the output directory, already ignored by the repo
 
 ## Explicit MVP fallbacks
 
-- `image`, `title_card`, `broll`, `video`, and the schema's `quote_card` all produce program-drawn placeholder cards, labeled as placeholders. Prompts are not sent to image/video APIs. Requested motion is approximated by a gentle push-in.
+- When no `--assets-dir` image is supplied for a scene, `image`, `title_card`, `broll`, `video`, and `quote_card` use a labeled program-generated placeholder. The renderer does not call an image/video API. Supplied still images are normalized and animated with a gentle push-in; AI video clips are not supported yet.
 - Default `NoTTS` returns no audio. `manifest.json` records `speech_status: fallback_no_audio` and an explicit fallback warning. No silent track or synthetic tone is presented as speech.
 - Requested music is omitted and recorded in the manifest.
 - Scene transitions use cuts; requested transitions remain recorded in the manifest.
