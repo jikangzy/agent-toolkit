@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import json
 import math
@@ -139,6 +140,7 @@ class TTSProvider(Protocol):
 
 class NoTTS:
     cache_key = 'no-tts-v1'
+    speech_status = 'fallback_no_audio'
     fallback = 'No Chinese TTS configured: video has NO audio track; this is not real narration.'
 
     def synthesize(self, scene_id, narration, voice, duration, workdir):
@@ -148,6 +150,7 @@ class NoTTS:
 class RecordedSpeech:
     """Adapter for caller-provided real narration WAVs; does not claim to synthesize."""
     fallback = None
+    speech_status = 'provided_audio'
 
     def __init__(self, directory, scenes):
         self.directory = Path(directory).resolve()
@@ -165,6 +168,96 @@ class RecordedSpeech:
         if float(metadata['format']['duration']) > duration + .001:
             raise RenderError(f'{scene_id}: speech exceeds scene duration; refusing to truncate narration')
         return path
+
+
+class EdgeTTS:
+    """Optional online Chinese speech synthesis through the edge-tts package.
+
+    This calls an external Microsoft Edge online TTS service. It is not offline,
+    has no availability guarantee, and should be replaceable by another provider.
+    """
+    fallback = None
+    speech_status = 'generated_audio'
+    provider_notice = (
+        'Speech generated through the external Edge TTS service; internet access is required '
+        'and service availability/voice behavior may change.'
+    )
+
+    def __init__(self, voice_id=None):
+        try:
+            import edge_tts
+        except ImportError as exc:
+            raise RenderError(
+                'Edge TTS is optional. Install it with: '
+                'python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt'
+            ) from exc
+        self.edge_tts = edge_tts
+        self.voice_id = voice_id or 'zh-CN-YunxiNeural'
+        self.cache_key = fingerprint({
+            'provider': 'edge-tts',
+            'package_version': getattr(edge_tts, '__version__', 'unknown'),
+            'voice_id': self.voice_id,
+        })
+
+    @staticmethod
+    def rate_for(voice):
+        speed = float(voice.get('speed', 1.0))
+        if not 0.5 <= speed <= 2.0:
+            raise RenderError('voice.speed for Edge TTS must be between 0.5 and 2.0')
+        return f'{round((speed - 1.0) * 100):+d}%'
+
+    def synthesize(self, scene_id, narration, voice, duration, workdir):
+        output = workdir / f'{scene_id}.edge-tts.mp3'
+        if output.exists():
+            output.unlink()
+        rate = self.rate_for(voice)
+
+        async def save_audio():
+            communicate = self.edge_tts.Communicate(
+                text=narration,
+                voice=self.voice_id,
+                rate=rate,
+            )
+            await communicate.save(str(output))
+
+        try:
+            asyncio.run(save_audio())
+        except Exception as exc:
+            raise RenderError(f'{scene_id}: Edge TTS synthesis failed: {exc}') from exc
+
+        if not output.is_file() or output.stat().st_size == 0:
+            raise RenderError(f'{scene_id}: Edge TTS returned no audio file')
+
+        metadata = probe(output)
+        if not any(s['codec_type'] == 'audio' for s in metadata['streams']):
+            raise RenderError(f'{scene_id}: Edge TTS output contains no audio stream')
+
+        audio_duration = float(metadata['format']['duration'])
+        if audio_duration > duration + 0.15:
+            speedup = audio_duration / duration
+            # Preserve every word. Only allow a modest speed-up; fail rather than
+            # silently truncate narration or make speech unnaturally fast.
+            if speedup > 1.15:
+                raise RenderError(
+                    f'{scene_id}: generated speech is {audio_duration:.2f}s but the scene is '
+                    f'{duration:.2f}s. Refusing to truncate or excessively speed up narration; '
+                    'increase this scene duration or choose a faster voice rate.'
+                )
+            fitted = workdir / f'{scene_id}.edge-tts-fitted.mp3'
+            command([
+                'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+                '-i', output, '-filter:a', f'atempo={speedup:.5f}', '-vn', fitted,
+            ])
+            fitted_info = probe(fitted)
+            fitted_duration = float(fitted_info['format']['duration'])
+            if fitted_duration > duration + 0.15:
+                raise RenderError(
+                    f'{scene_id}: speech still exceeds scene duration after safe tempo adjustment; '
+                    'refusing to truncate narration.'
+                )
+            return fitted
+
+        return output
 
 
 def wrap(text, font, width):
@@ -252,7 +345,7 @@ def encode_scene(scene, data, font, work, provider):
     return clip, audio is not None
 
 
-def render(source, output, font=None, attempts=3, provider=None, speech_dir=None):
+def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None):
     if attempts < 1 or attempts > 10:
         raise RenderError('attempts must be between 1 and 10')
     source, output = Path(source).resolve(), Path(output).resolve()
@@ -270,15 +363,28 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 raise RenderError(f'Missing executable: {tool}')
         text = '程序生成占位画面非真实素材' + ''.join(s['onscreen_text'] + s['narration'] for s in data['scenes'])
         font_path = find_font(font, text)
-        provider = provider or (RecordedSpeech(speech_dir, data['scenes']) if speech_dir else NoTTS())
+        if provider is None:
+            if speech_dir and tts_provider != 'none':
+                raise RenderError('Use either --tts-audio-dir or --tts-provider edge-tts, not both')
+            if tts_voice and tts_provider != 'edge-tts':
+                raise RenderError('--tts-voice can only be used with --tts-provider edge-tts')
+            if speech_dir:
+                provider = RecordedSpeech(speech_dir, data['scenes'])
+            elif tts_provider == 'edge-tts':
+                provider = EdgeTTS(tts_voice)
+            else:
+                provider = NoTTS()
         manifest.update(storyboard_sha256=source_hash, scene_order=[s['id'] for s in data['scenes']],
                         font=str(font_path), tts_provider=type(provider).__name__,
-                        speech_status='fallback_no_audio' if isinstance(provider, NoTTS) else 'provided_audio')
+                        tts_voice=getattr(provider, 'voice_id', None),
+                        speech_status=getattr(provider, 'speech_status', 'provided_audio'))
         manifest['fallbacks'] = ['All visual types use program-generated placeholders with a gentle push-in.',
                                  'Subtitles use scene-proportional timing, not speech alignment.',
                                  'Transitions use cuts; requested transitions are recorded per scene.']
         if provider.fallback:
             manifest['fallbacks'].append(provider.fallback)
+        if getattr(provider, 'provider_notice', None):
+            manifest.setdefault('provider_notes', []).append(provider.provider_notice)
         if data.get('music', {}).get('enabled'):
             manifest['fallbacks'].append('Requested background music omitted; no music provider configured.')
         (output/'subtitles.srt').write_text(subtitles(data), encoding='utf-8')
@@ -330,7 +436,7 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             save_json(manifest_path, manifest)
         if len(set(audio_flags)) != 1:
             raise RenderError('Provider returned mixed speech/no-speech scenes; refusing incomplete narration')
-        manifest['speech_status'] = 'provided_audio' if audio_flags[0] else 'fallback_no_audio'
+        manifest['speech_status'] = getattr(provider, 'speech_status', 'provided_audio') if audio_flags[0] else 'fallback_no_audio'
         if not audio_flags[0] and not provider.fallback:
             manifest['fallbacks'].append('Provider returned no audio: output has no real narration.')
         # Fixed internal filenames avoid ffmpeg concat/filter escaping of user paths.
@@ -377,9 +483,12 @@ def main():
     parser.add_argument('--font', help='CJK font covering all storyboard characters')
     parser.add_argument('--attempts', type=int, default=3)
     parser.add_argument('--tts-audio-dir', type=Path, help='Real narration WAV files named scene_001.wav, etc.')
+    parser.add_argument('--tts-provider', choices=['none', 'edge-tts'], default='none', help='Optional speech synthesis provider; default none keeps rendering offline')
+    parser.add_argument('--tts-voice', help='Edge TTS voice ID, e.g. zh-CN-YunxiNeural')
     args = parser.parse_args()
     try:
-        result = render(args.storyboard, args.output, args.font, args.attempts, speech_dir=args.tts_audio_dir)
+        result = render(args.storyboard, args.output, args.font, args.attempts,
+                        speech_dir=args.tts_audio_dir, tts_provider=args.tts_provider, tts_voice=args.tts_voice)
         print(json.dumps({'status': result['status'], 'fallbacks': result['fallbacks'], 'qc': result['qc']}, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f'Render failed: {exc}', file=sys.stderr)
