@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -170,11 +171,9 @@ class UnitTests(unittest.TestCase):
             async def save(self, path):
                 Path(path).write_bytes(b'fake audio bytes')
 
-        class FakeEdgeTTS:
-            __version__ = 'test-version'
-            Communicate = FakeCommunicate
+        fake_edge_tts = types.SimpleNamespace(__version__='test-version', Communicate=FakeCommunicate)
 
-        with patch.dict(sys.modules, {'edge_tts': FakeEdgeTTS}), patch.object(
+        with patch.dict(sys.modules, {'edge_tts': fake_edge_tts}), patch.object(
             r, 'probe',
             return_value={'streams': [{'codec_type': 'audio'}], 'format': {'duration': '2.5'}}
         ):
@@ -200,11 +199,9 @@ class UnitTests(unittest.TestCase):
             async def save(self, path):
                 Path(path).write_bytes(b'fake audio bytes')
 
-        class FakeEdgeTTS:
-            __version__ = 'test-version'
-            Communicate = FakeCommunicate
+        fake_edge_tts = types.SimpleNamespace(__version__='test-version', Communicate=FakeCommunicate)
 
-        with patch.dict(sys.modules, {'edge_tts': FakeEdgeTTS}), patch.object(
+        with patch.dict(sys.modules, {'edge_tts': fake_edge_tts}), patch.object(
             r, 'probe',
             return_value={'streams': [{'codec_type': 'audio'}], 'format': {'duration': '5.0'}}
         ):
