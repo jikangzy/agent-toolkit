@@ -42,6 +42,32 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
     - no missing scene files
 11. Write final output under a local ignored run directory such as `output/<run-id>/final.mp4`.
 
+## Current repository MVP
+
+The checked-in CLI currently renders **program-generated placeholder visuals**, not AI-generated images or video. It can optionally synthesize real Chinese narration through Edge TTS. Do not describe a default no-audio render as a finished narrated video.
+
+Run commands from the repository root:
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements.txt
+python tools/book-video-renderer/renderer.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/<run-id>
+```
+
+The default `--tts-provider none` is offline and produces no audio track. To explicitly enable online Chinese narration:
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
+python tools/book-video-renderer/renderer.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/<run-id> \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural
+```
+
+Before enabling Edge TTS, disclose that narration text is sent to an external service and requires internet access. It is optional and has no availability guarantee. If synthesis fails or speech does not fit the scene without excessive speed-up, report the failure rather than claiming success or truncating narration. Generated video/audio/cache/font assets belong under the ignored `output/` directory or CI artifacts, never in source control. Subtitles currently use scene-proportional timing, not word-level forced alignment.
+
 ## Suggested local structure
 output/
   <run-id>/
