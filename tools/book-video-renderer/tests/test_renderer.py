@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -211,6 +212,65 @@ class IntegrationTests(unittest.TestCase):
         r.command(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=frequency=440:duration=4', wav])
         with self.assertRaisesRegex(r.RenderError, 'refusing to truncate'):
             provider.synthesize(scene['id'], scene['narration'], {}, 3, work)
+
+
+    def test_edge_tts_uses_verbatim_text_and_voice_rate_without_network(self):
+        calls = {}
+
+        class FakeCommunicate:
+            def __init__(self, text, voice, rate):
+                calls.update(text=text, voice=voice, rate=rate)
+
+            async def save(self, path):
+                Path(path).write_bytes(b'fake audio bytes')
+
+        class FakeEdgeTTS:
+            __version__ = 'test-version'
+            Communicate = FakeCommunicate
+
+        with patch.dict(sys.modules, {'edge_tts': FakeEdgeTTS}), patch.object(
+            r, 'probe',
+            return_value={'streams': [{'codec_type': 'audio'}], 'format': {'duration': '2.5'}}
+        ):
+            provider = r.EdgeTTS('zh-CN-YunxiNeural')
+            audio = provider.synthesize(
+                'scene_001', '这段口播必须逐字保留。', {'speed': 0.95}, 3.0, self.root
+            )
+
+        self.assertEqual(calls, {
+            'text': '这段口播必须逐字保留。',
+            'voice': 'zh-CN-YunxiNeural',
+            'rate': '-5%',
+        })
+        self.assertTrue(audio.is_file())
+        self.assertEqual(provider.speech_status, 'generated_audio')
+        self.assertIn('external Edge TTS service', provider.provider_notice)
+
+    def test_edge_tts_rejects_oversized_speech_instead_of_truncating(self):
+        class FakeCommunicate:
+            def __init__(self, text, voice, rate):
+                pass
+
+            async def save(self, path):
+                Path(path).write_bytes(b'fake audio bytes')
+
+        class FakeEdgeTTS:
+            __version__ = 'test-version'
+            Communicate = FakeCommunicate
+
+        with patch.dict(sys.modules, {'edge_tts': FakeEdgeTTS}), patch.object(
+            r, 'probe',
+            return_value={'streams': [{'codec_type': 'audio'}], 'format': {'duration': '5.0'}}
+        ):
+            provider = r.EdgeTTS('zh-CN-YunxiNeural')
+            with self.assertRaisesRegex(r.RenderError, 'Refusing to truncate'):
+                provider.synthesize('scene_001', '完整旁白', {'speed': 1.0}, 3.0, self.root)
+
+    def test_edge_tts_rate_bounds(self):
+        self.assertEqual(r.EdgeTTS.rate_for({'speed': 1.0}), '+0%')
+        self.assertEqual(r.EdgeTTS.rate_for({'speed': 1.2}), '+20%')
+        with self.assertRaisesRegex(r.RenderError, 'between 0.5 and 2.0'):
+            r.EdgeTTS.rate_for({'speed': 2.5})
 
 
 if __name__ == '__main__':
