@@ -8,6 +8,11 @@ node_modules/
 dist/
 build/
 output/
+.local/
+runs/
+artifacts/
+cache/
 *.mp4
+*.webm
 *.wav
 *.mp3

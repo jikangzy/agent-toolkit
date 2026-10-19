@@ -1,3 +1,9 @@
+---
+name: book-story-producer
+description: 从书名研究并生成约两分钟中文读书分享视频 storyboard.json；用于 Book Video 创作规划阶段。
+allowed-tools: Read, Write, Bash, WebFetch, WebSearch
+---
+
 # book-story-producer
 
 ## Purpose

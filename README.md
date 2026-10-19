@@ -11,6 +11,7 @@ agent-toolkit/
 ├── tools/        # Standalone agent/orchestration tools
 ├── schemas/      # Shared machine-readable contracts
 ├── examples/     # End-to-end examples and fixtures
+├── scripts/      # Local setup / install helpers
 └── docs/         # Architecture and development notes
 ```
 
@@ -23,11 +24,11 @@ The first experiment separates creative planning from deterministic media produc
 ```text
 Book title
    ↓
-WorkBuddy / story-producer
+WorkBuddy / book-story-producer
    ↓
 storyboard.json
    ↓
-Codex / video-renderer
+Codex / book-video-renderer
    ↓
 final.mp4
 ```
@@ -36,6 +37,60 @@ final.mp4
 - `skills/book-video/video-renderer/`: consumes a locked storyboard and renders media assets, speech, subtitles, and the final video.
 - `schemas/book-video/storyboard.schema.json`: contract between the two stages.
 - `examples/book-video/storyboard.example.json`: sample payload for testing.
+
+## Install WorkBuddy skills
+
+On Windows, run from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-workbuddy-skills.ps1
+```
+
+By default the script installs the skills to the current user's WorkBuddy / CodeBuddy skill directory:
+
+```text
+%USERPROFILE%\.codebuddy\skills\
+├── book-story-producer\
+└── book-video-renderer\
+```
+
+To install project-local copies instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-workbuddy-skills.ps1 -Scope project
+```
+
+## Generated data policy
+
+Generated media is **local by default** and should not be committed to Git.
+
+Keep locally:
+- rendered videos
+- generated images / video clips
+- TTS audio
+- subtitles created for a run
+- temporary files and provider caches
+- per-run manifests that contain machine-specific paths or provider responses
+
+Recommended local paths:
+
+```text
+output/
+.local/runs/
+runs/
+artifacts/
+cache/
+```
+
+Commit only durable source-of-truth material:
+- Skills
+- schemas
+- scripts
+- provider adapters
+- hand-curated prompts/configuration
+- deliberately selected example storyboards and small fixtures
+
+If a generated final video needs to be shared, prefer GitHub Releases or object storage over committing large binaries to the repository.
 
 ## Reserved tool space
 

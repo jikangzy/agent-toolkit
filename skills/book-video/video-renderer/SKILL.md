@@ -1,3 +1,9 @@
+---
+name: book-video-renderer
+description: 将已确认的 storyboard.json 转成视频素材、配音、字幕并用 FFmpeg 合成 final.mp4；不得改写口播内容。
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep
+---
+
 # book-video-renderer
 
 ## Purpose
@@ -34,17 +40,18 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
     - contains audio stream
     - final duration within +/- 8% of target
     - no missing scene files
-11. Write final output to `output/final.mp4` and render manifest to `output/manifest.json`.
+11. Write final output under a local ignored run directory such as `output/<run-id>/final.mp4`.
 
 ## Suggested local structure
 output/
-  manifest.json
-  audio/
-  images/
-  videos/
-  scenes/
-  subtitles/
-  final.mp4
+  <run-id>/
+    manifest.json
+    audio/
+    images/
+    videos/
+    scenes/
+    subtitles/
+    final.mp4
 
 ## Provider abstraction
 Implement provider adapters rather than hard-coding vendors:
