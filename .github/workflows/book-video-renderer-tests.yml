@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       render_tts_sample:
-        description: "Generate the Naval sample with online Edge TTS (sends narration text to the external TTS service)"
+        description: "Generate the first 8-second scene with online Edge TTS (sends narration text to the external TTS service)"
         required: true
         type: boolean
         default: false
@@ -65,12 +65,36 @@ jobs:
         run: |
           python -m pip install -r tools/book-video-renderer/requirements.txt
           python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
-      - name: Render Naval sample with real Chinese speech
+      - name: Prepare an 8-second storyboard from the first scene
+        run: |
+          mkdir -p /tmp/naval-test-001-edge-tts-sample
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path("examples/book-video/naval-test-001/storyboard.json")
+          sample = json.loads(source.read_text(encoding="utf-8"))
+          original_narration = sample["scenes"][0]["narration"]
+          sample["scenes"] = sample["scenes"][:1]
+          assert len(sample["scenes"]) == 1
+          assert sample["scenes"][0]["duration_seconds"] == 8
+          sample["format"]["target_duration_seconds"] = sum(
+              scene["duration_seconds"] for scene in sample["scenes"]
+          )
+          assert sample["format"]["target_duration_seconds"] == 8
+          assert sample["scenes"][0]["narration"] == original_narration
+          Path("/tmp/naval-test-001-edge-tts-sample/storyboard.json").write_text(
+              json.dumps(sample, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print("Prepared first scene only; narration preserved verbatim.")
+          PY
+      - name: Render 8-second opening sample with real Chinese speech
         run: |
           FONT="$(fc-match -f '%{file}' 'Noto Sans CJK SC' | head -n 1)"
           test -n "$FONT"
           python tools/book-video-renderer/renderer.py \
-            examples/book-video/naval-test-001/storyboard.json \
+            /tmp/naval-test-001-edge-tts-sample/storyboard.json \
             --font "$FONT" \
             --output output/naval-test-001-edge-tts \
             --tts-provider edge-tts \
