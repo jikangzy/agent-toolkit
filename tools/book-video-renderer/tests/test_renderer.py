@@ -234,6 +234,8 @@ class UnitTests(unittest.TestCase):
         self.assertTrue(ffmpeg.called)
         args = ffmpeg.call_args.args[0]
         self.assertTrue(any(str(arg).startswith('atempo=') for arg in args))
+        filter_index = args.index('-filter:a')
+        self.assertEqual(args[filter_index + 1], 'atempo=1.07018')
 
 
     def test_edge_tts_rate_bounds(self):
