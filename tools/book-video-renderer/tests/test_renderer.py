@@ -209,6 +209,33 @@ class UnitTests(unittest.TestCase):
             with self.assertRaisesRegex(r.RenderError, 'Refusing to truncate'):
                 provider.synthesize('scene_001', '完整旁白', {'speed': 1.0}, 3.0, self.root)
 
+    def test_edge_tts_fits_slightly_overlong_speech_before_video_encoding(self):
+        class FakeCommunicate:
+            def __init__(self, text, voice, rate):
+                pass
+
+            async def save(self, path):
+                Path(path).write_bytes(b'fake audio bytes')
+
+        fake_edge_tts = types.SimpleNamespace(__version__='test-version', Communicate=FakeCommunicate)
+        probe_results = [
+            {'streams': [{'codec_type': 'audio'}], 'format': {'duration': '3.05'}},
+            {'streams': [{'codec_type': 'audio'}], 'format': {'duration': '2.98'}},
+        ]
+        with patch.dict(sys.modules, {'edge_tts': fake_edge_tts}), patch.object(
+            r, 'probe', side_effect=probe_results
+        ), patch.object(r, 'command') as ffmpeg:
+            provider = r.EdgeTTS('zh-CN-YunxiNeural')
+            audio = provider.synthesize(
+                'scene_001', '完整旁白', {'speed': 1.0}, 3.0, self.root
+            )
+
+        self.assertEqual(audio.name, 'scene_001.edge-tts-fitted.mp3')
+        self.assertTrue(ffmpeg.called)
+        args = ffmpeg.call_args.args[0]
+        self.assertTrue(any(str(arg).startswith('atempo=') for arg in args))
+
+
     def test_edge_tts_rate_bounds(self):
         self.assertEqual(r.EdgeTTS.rate_for({'speed': 1.0}), '+0%')
         self.assertEqual(r.EdgeTTS.rate_for({'speed': 1.2}), '+20%')
