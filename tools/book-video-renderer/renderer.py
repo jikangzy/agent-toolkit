@@ -489,7 +489,7 @@ def main():
     try:
         result = render(args.storyboard, args.output, args.font, args.attempts,
                         speech_dir=args.tts_audio_dir, tts_provider=args.tts_provider, tts_voice=args.tts_voice)
-        print(json.dumps({'status': result['status'], 'fallbacks': result['fallbacks'], 'qc': result['qc']}, ensure_ascii=False, indent=2))
+        print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f'Render failed: {exc}', file=sys.stderr)
         return 1
