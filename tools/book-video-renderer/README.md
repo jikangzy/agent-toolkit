@@ -4,7 +4,7 @@ Offline Python CLI for the repository's locked storyboard contract. It validates
 
 ## Setup
 
-Requires Python 3.10+, FFmpeg/ffprobe (libx264, AAC, libass/subtitles filter), and a Chinese font covering all input characters. No paid APIs, API keys, remote downloads or network calls occur during rendering.
+Requires Python 3.10+, FFmpeg/ffprobe (libx264, AAC, libass/subtitles filter), and a Chinese font covering all input characters. The default `none` TTS mode remains offline. An optional Edge TTS provider makes an external network request to synthesize speech; review that service's terms and privacy implications before sending narration text.
 
 ```bash
 python -m pip install -r tools/book-video-renderer/requirements.txt
@@ -23,6 +23,23 @@ python tools/book-video-renderer/renderer.py \
 ```
 
 Optional: `--font /path/to/NotoSansCJKsc-Regular.otf`, `--attempts 3` (1–10).
+
+### Optional real Chinese TTS
+
+Install the separate optional dependency (it is intentionally excluded from the offline base requirements):
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
+python tools/book-video-renderer/renderer.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001-edge-tts \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural
+```
+
+The default voice is `zh-CN-YunxiNeural`; use `--tts-voice` to select another Edge TTS voice. The storyboard's `voice.speed` is mapped to the service's speech-rate setting. The provider writes real generated MP3 speech and FFmpeg encodes it to AAC in the video. It never changes narration text. If speech exceeds a scene's duration, only a small speed-up (up to 15%) is allowed; otherwise rendering fails with a clear error instead of truncating words.
+
+**Important limitations:** Edge TTS is an online, third-party service, not an offline engine or a guaranteed production API. It requires network access and may change or throttle. Narration text is sent to that service. The provider is optional and replaceable; the default renderer still performs no TTS network calls. Subtitle timing remains scene-proportional in this iteration, so it is not yet word-level aligned to the generated audio.
 
 The MVP accepts 1080x1920 / 9:16 / 30 fps only; output is H.264/yuv420p with AAC when real audio is supplied. Schema validation is followed by unique-ID and timing checks. Scene durations are rounded to the nearest frame. Total duration must fall within ±8% of the declared target; it is never silently stretched. The Naval example has 113 seconds of scenes against a 120-second target and produces a 113-second video.
 
@@ -62,7 +79,7 @@ python tools/book-video-renderer/renderer.py \
   --tts-audio-dir /path/to/real-narration
 ```
 
-Provide `scene_001.wav` through `scene_010.wav`, each matching its scene's exact narration. Matching transcript content is the caller's responsibility; this MVP does not perform speech recognition. Short audio is padded to the scene duration; overlong audio fails rather than truncating narration. Missing WAVs fail. Mixed speech/no-speech scenes fail. Output audio is encoded to AAC, 48 kHz stereo. The MVP does not include a Chinese speech synthesizer.
+Provide `scene_001.wav` through `scene_010.wav`, each matching its scene's exact narration. Matching transcript content is the caller's responsibility; this MVP does not perform speech recognition. Short audio is padded to the scene duration; overlong audio fails rather than truncating narration. Missing WAVs fail. Mixed speech/no-speech scenes fail. Output audio is encoded to AAC, 48 kHz stereo. An optional Edge TTS provider can synthesize Chinese speech when explicitly enabled; the default remains no-audio and offline.
 
 ## Retry, resume and failure behavior
 
