@@ -233,8 +233,11 @@ class EdgeTTS:
             raise RenderError(f'{scene_id}: Edge TTS output contains no audio stream')
 
         audio_duration = float(metadata['format']['duration'])
-        if audio_duration > duration + 0.15:
-            speedup = audio_duration / duration
+        if audio_duration > duration:
+            # Leave a small margin so FFmpeg never has to cut the tail of the
+            # narration when it bounds the scene video to an exact frame count.
+            target_duration = max(0.1, duration - 0.02)
+            speedup = audio_duration / target_duration
             # Preserve every word. Only allow a modest speed-up; fail rather than
             # silently truncate narration or make speech unnaturally fast.
             if speedup > 1.15:
@@ -250,7 +253,7 @@ class EdgeTTS:
             ])
             fitted_info = probe(fitted)
             fitted_duration = float(fitted_info['format']['duration'])
-            if fitted_duration > duration + 0.15:
+            if fitted_duration > duration:
                 raise RenderError(
                     f'{scene_id}: speech still exceeds scene duration after safe tempo adjustment; '
                     'refusing to truncate narration.'
