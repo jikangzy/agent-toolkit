@@ -10,6 +10,6 @@ The renderer must not rewrite narration, reorder scenes, or alter book claims. T
 ## MVP progression
 
 - V0: program-generated placeholder visuals + optional Edge TTS + scene-timed subtitles + FFmpeg (default TTS is off; explicitly opt in to send narration to the external TTS service)
-- V1: AI images + TTS + subtitles + FFmpeg
+- V1: agent-generated still images via `--assets-dir` + optional TTS + subtitles + FFmpeg (image generation runs outside the renderer CLI)
 - V2: AI video for selected scenes, AI images for the rest
 - V3: background music, transitions, style consistency, automatic QC
