@@ -1,0 +1,129 @@
+{
+  "version": "0.1",
+  "title": "纳瓦尔宝典",
+  "author": "埃里克·乔根森",
+  "format": {
+    "aspect_ratio": "9:16",
+    "resolution": "1080x1920",
+    "target_duration_seconds": 120,
+    "fps": 30
+  },
+  "voice": {
+    "language": "zh-CN",
+    "style": "自然、沉稳、有思考感",
+    "speed": 1.0
+  },
+  "music": {
+    "enabled": true,
+    "style": "克制、现代、轻微氛围感，不抢人声",
+    "volume_db": -24
+  },
+  "scenes": [
+    {
+      "id": "scene_001",
+      "duration_seconds": 8,
+      "narration": "为什么有的人越来越忙，却始终没有变得更自由？",
+      "visual": {
+        "type": "video",
+        "prompt": "A young East Asian office worker alone in a modern office late at night, laptop glow, city lights outside, tired but thoughtful expression, cinematic realistic photography, slow push-in camera",
+        "motion": "slow push-in"
+      },
+      "onscreen_text": "越忙，为什么反而越不自由？",
+      "transition": "fade"
+    },
+    {
+      "id": "scene_002",
+      "duration_seconds": 12,
+      "narration": "《纳瓦尔宝典》最打动我的地方，不是教你快速赚钱，而是重新定义财富、时间和自由。",
+      "visual": {
+        "type": "image",
+        "prompt": "Minimal editorial illustration about wealth, time and personal freedom, a human silhouette stepping away from a clock and toward an open horizon, elegant modern composition, premium book editorial aesthetic",
+        "motion": "gentle pan right"
+      },
+      "onscreen_text": "财富、时间、自由",
+      "transition": "dissolve"
+    },
+    {
+      "id": "scene_003",
+      "duration_seconds": 14,
+      "narration": "第一个启发，是不要把财富等同于工资。工资是你用时间换来的收入，而真正的财富，是那些即使你不在工作，也能持续创造价值的资产。",
+      "visual": {
+        "type": "image",
+        "prompt": "Conceptual split scene: on one side a person trading hours at a desk for money, on the other side digital products and investments continuing to create value while the person rests, clean cinematic infographic style",
+        "motion": "slow zoom-in"
+      },
+      "onscreen_text": "工资 ≠ 财富",
+      "transition": "cut"
+    },
+    {
+      "id": "scene_004",
+      "duration_seconds": 14,
+      "narration": "第二个启发，是找到属于自己的专长。真正有价值的能力，往往来自你的兴趣、经验和长期积累，而不是一张标准答案。",
+      "visual": {
+        "type": "video",
+        "prompt": "A creator building a unique skill over time: coding, writing, reading and making digital products, warm studio, layered montage feeling, cinematic realistic style, subtle handheld motion",
+        "motion": "subtle handheld"
+      },
+      "onscreen_text": "找到你的独特专长",
+      "transition": "dissolve"
+    },
+    {
+      "id": "scene_005",
+      "duration_seconds": 14,
+      "narration": "第三个启发，是学会使用杠杆。代码、媒体和资本，都可以把一次努力复制很多次，让你的产出不再只和投入的时间一一对应。",
+      "visual": {
+        "type": "image",
+        "prompt": "Modern conceptual illustration of leverage: one person creates a piece of code and media that multiplies into many outputs across screens and devices, elegant technological visual metaphor, dark premium editorial style",
+        "motion": "slow zoom-out"
+      },
+      "onscreen_text": "代码 · 媒体 · 资本",
+      "transition": "zoom"
+    },
+    {
+      "id": "scene_006",
+      "duration_seconds": 14,
+      "narration": "但这本书真正困难的地方，是它提醒你：长期主义比聪明更稀缺。选择值得合作的人，选择能持续十年的事情，然后让复利替你工作。",
+      "visual": {
+        "type": "video",
+        "prompt": "Time-lapse metaphor of a small tree growing into a strong tree while two collaborators continue building something together across seasons, cinematic, poetic realism, steady camera",
+        "motion": "time-lapse growth"
+      },
+      "onscreen_text": "让复利替你工作",
+      "transition": "fade"
+    },
+    {
+      "id": "scene_007",
+      "duration_seconds": 14,
+      "narration": "所以，如果你只是把它当成一本赚钱的书，可能会低估它。它更像是在讨论一个问题：怎样设计一种不被工作完全绑住的人生。",
+      "visual": {
+        "type": "image",
+        "prompt": "A calm person walking from a crowded corporate corridor into a wide sunlit landscape, visual metaphor for designing a freer life, cinematic editorial photography, hopeful but restrained",
+        "motion": "slow pan left"
+      },
+      "onscreen_text": "设计一种更自由的人生",
+      "transition": "dissolve"
+    },
+    {
+      "id": "scene_008",
+      "duration_seconds": 15,
+      "narration": "我觉得《纳瓦尔宝典》最值得带走的，不是某一句金句，而是一套判断标准：你正在做的事情，能不能积累？能不能复制？能不能让未来的自己更自由？",
+      "visual": {
+        "type": "quote_card",
+        "prompt": "Minimal premium typography card with three reflective questions about accumulation, scalability and freedom, lots of negative space, sophisticated book-club visual identity"
+      },
+      "onscreen_text": "能积累吗？能复制吗？能让未来更自由吗？",
+      "transition": "fade"
+    },
+    {
+      "id": "scene_009",
+      "duration_seconds": 15,
+      "narration": "如果你最近正在思考职业方向、个人成长，或者怎样获得更多时间自主权，这本书值得你找来读一读。",
+      "visual": {
+        "type": "title_card",
+        "prompt": "Elegant closing card for a Chinese book-sharing short video, title 纳瓦尔宝典, subtle paper texture, modern minimal composition, premium editorial design"
+      },
+      "onscreen_text": "《纳瓦尔宝典》\n值得一读",
+      "transition": "fade"
+    }
+  ]
+}
