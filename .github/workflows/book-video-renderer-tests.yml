@@ -12,6 +12,13 @@ on:
     paths:
       - "tools/book-video-renderer/**"
       - ".github/workflows/book-video-renderer-tests.yml"
+  workflow_dispatch:
+    inputs:
+      render_tts_sample:
+        description: "Generate the Naval sample with online Edge TTS (sends narration text to the external TTS service)"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -41,3 +48,41 @@ jobs:
           echo "Using CJK font: $FONT"
           test -n "$FONT"
           BOOK_VIDEO_FONT="$FONT" python -m unittest discover -s tools/book-video-renderer/tests -v
+
+  render-tts-sample:
+    if: github.event_name == 'workflow_dispatch' && inputs.render_tts_sample
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install FFmpeg and CJK fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fontconfig fonts-noto-cjk
+      - name: Install renderer and optional Edge TTS dependencies
+        run: |
+          python -m pip install -r tools/book-video-renderer/requirements.txt
+          python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
+      - name: Render Naval sample with real Chinese speech
+        run: |
+          FONT="$(fc-match -f '%{file}' 'Noto Sans CJK SC' | head -n 1)"
+          test -n "$FONT"
+          python tools/book-video-renderer/renderer.py \
+            examples/book-video/naval-test-001/storyboard.json \
+            --font "$FONT" \
+            --output output/naval-test-001-edge-tts \
+            --tts-provider edge-tts \
+            --tts-voice zh-CN-YunxiNeural
+      - name: Upload rendered sample and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naval-test-001-edge-tts
+          path: |
+            output/naval-test-001-edge-tts/final.mp4
+            output/naval-test-001-edge-tts/manifest.json
+            output/naval-test-001-edge-tts/subtitles.srt
+          if-no-files-found: warn
+          retention-days: 7
