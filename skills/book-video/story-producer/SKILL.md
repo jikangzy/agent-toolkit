@@ -32,6 +32,12 @@ Given a book title, produce a fact-grounded Chinese short-video storyboard. The 
 - Keep language conversational and natural for voiceover.
 - Each scene should communicate one visual idea.
 - Prompts should describe visible composition, subject, setting, mood, camera language, and motion where relevant.
+- Treat each `visual.prompt` as instructions for **one standalone still frame**, not a storyboard, collage, contact sheet, or poster.
+- Use a consistent visual art direction across all scenes (palette, lighting, realism/illustration style, and lens language) so separate images feel like one video.
+- Prefer a vertical 9:16 composition with the main subject away from the extreme edges and a clean lower area for subtitles.
+- Do not ask image models to render titles, subtitles, labels, logos, watermarks, or readable book-cover text. The renderer overlays the exact `onscreen_text` from the storyboard.
+- Describe only visual content that should be visible in the generated image; keep camera motion in the separate `visual.motion` field because the renderer animates still images with pan/zoom.
+- Keep `negative_prompt` explicit about text, logos, watermarks, malformed hands/faces, clutter, and any unwanted style when relevant.
 - Do not include provider-specific syntax.
 
 ## Output contract
