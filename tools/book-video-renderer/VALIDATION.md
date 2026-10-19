@@ -43,3 +43,8 @@ The storyboard scene sum is 113 seconds versus its declared 120-second target (5
 ## Explicit limitations / not executed
 
 Real Chinese TTS synthesis and speech-to-subtitle forced alignment were **not executed**: there is no configured speech engine. Caller-provided real WAV audio is supported behind the provider protocol, but transcript correctness requires caller verification. No paid image/video API or real stock-media sourcing was tested or included. Background music and requested cinematic transitions are omitted; placeholders use gentle push-in and cuts. These fallbacks are written to the manifest.
+
+
+## Follow-up: optional Edge TTS provider
+
+A follow-up change adds an opt-in `EdgeTTS` adapter and CLI flags `--tts-provider edge-tts` / `--tts-voice`. The optional dependency is isolated in `requirements-tts-edge.txt`; it is not installed by the offline base requirements. Unit tests mock the external service and verify verbatim narration, voice/rate mapping, and refusal to truncate long speech. **Live Edge TTS synthesis and an audio-bearing Naval render have not been run in this validation environment.** The online service requires internet access and may change or throttle. Scene-proportional subtitle timing is unchanged.
