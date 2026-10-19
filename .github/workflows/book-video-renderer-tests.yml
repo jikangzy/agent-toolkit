@@ -1,0 +1,43 @@
+name: Book Video Renderer tests
+
+on:
+  pull_request:
+    paths:
+      - "tools/book-video-renderer/**"
+      - ".github/workflows/book-video-renderer-tests.yml"
+  push:
+    branches:
+      - main
+      - feat/book-video-renderer-mvp
+    paths:
+      - "tools/book-video-renderer/**"
+      - ".github/workflows/book-video-renderer-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install FFmpeg and CJK fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fontconfig fonts-noto-cjk
+      - name: Install Python dependencies
+        run: python -m pip install -r tools/book-video-renderer/requirements.txt
+      - name: Compile Python files
+        run: |
+          python -m py_compile tools/book-video-renderer/renderer.py
+          python -m py_compile tools/book-video-renderer/tests/test_renderer.py
+      - name: Run unit and FFmpeg integration tests
+        shell: bash
+        run: |
+          FONT="$(fc-match -f '%{file}' 'Noto Sans CJK SC' | head -n 1)"
+          echo "Using CJK font: $FONT"
+          test -n "$FONT"
+          BOOK_VIDEO_FONT="$FONT" python -m unittest discover -s tools/book-video-renderer/tests -v
