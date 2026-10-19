@@ -160,60 +160,6 @@ class UnitTests(unittest.TestCase):
             r.verify_video('bad.mp4', 3, False)
 
 
-@unittest.skipUnless(FONT and shutil.which('ffmpeg') and shutil.which('ffprobe'), 'Set BOOK_VIDEO_FONT and install FFmpeg/ffprobe for integration tests')
-class IntegrationTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='renderer integration ')
-        self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
-
-    def test_all_visuals_cache_and_immutable_input(self):
-        data = fixture()
-        source = self.root/'storyboard.json'
-        source.write_text(json.dumps(data, ensure_ascii=False))
-        original = source.read_bytes()
-        output = self.root/'output'
-        first = r.render(source, output, FONT)
-        self.assertEqual(first['status'], 'complete')
-        self.assertEqual(first['scene_order'], [s['id'] for s in data['scenes']])
-        self.assertEqual(first['qc']['duration_seconds'], 15)
-        self.assertIsNone(first['qc']['audio_codec'])
-        self.assertEqual(len(list((output/'scenes').glob('*.mp4'))), 5)
-        self.assertTrue((output/'subtitles.srt').is_file())
-        second = r.render(source, output, FONT)
-        self.assertTrue(all(e['cache_hit'] for e in second['scenes']))
-        self.assertEqual(source.read_bytes(), original)
-        self.assertEqual([e['onscreen_text'] for e in second['scenes']], [s['onscreen_text'] for s in data['scenes']])
-        # Corrupt one clip: only that scene must be regenerated, verified with real ffprobe.
-        clip = next((output/'cache').glob('*/clip.mp4'))
-        clip.write_bytes(b'corrupt')
-        third = r.render(source, output, FONT)
-        self.assertEqual(sum(not e['cache_hit'] for e in third['scenes']), 1)
-
-    def test_aac_adapter_and_reject_truncation(self):
-        scene = fixture()['scenes'][0]
-        # Synthetic test fixture only; never used or described as real narration.
-        wav = self.root/(scene['id']+'.wav')
-        r.command(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=frequency=440:duration=1', wav])
-        provider = r.RecordedSpeech(self.root, [scene])
-        work = self.root/'work'
-        work.mkdir()
-        clip, audio = r.encode_scene(scene, fixture(), Path(FONT), work, provider)
-        self.assertTrue(audio)
-        self.assertEqual(r.verify_video(clip, 3, True)['audio_codec'], 'aac')
-        data = fixture()
-        for item in data['scenes'][1:]:
-            shutil.copy2(wav, self.root/(item['id']+'.wav'))
-        source = self.root/'storyboard.json'
-        source.write_text(json.dumps(data, ensure_ascii=False))
-        final = r.render(source, self.root/'audio-output', FONT, speech_dir=self.root)
-        self.assertEqual(final['qc']['audio_codec'], 'aac')
-        self.assertEqual(final['speech_status'], 'provided_audio')
-        r.command(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=frequency=440:duration=4', wav])
-        with self.assertRaisesRegex(r.RenderError, 'refusing to truncate'):
-            provider.synthesize(scene['id'], scene['narration'], {}, 3, work)
-
-
     def test_edge_tts_uses_verbatim_text_and_voice_rate_without_network(self):
         calls = {}
 
@@ -271,6 +217,60 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(r.EdgeTTS.rate_for({'speed': 1.2}), '+20%')
         with self.assertRaisesRegex(r.RenderError, 'between 0.5 and 2.0'):
             r.EdgeTTS.rate_for({'speed': 2.5})
+
+
+@unittest.skipUnless(FONT and shutil.which('ffmpeg') and shutil.which('ffprobe'), 'Set BOOK_VIDEO_FONT and install FFmpeg/ffprobe for integration tests')
+class IntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix='renderer integration ')
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+
+    def test_all_visuals_cache_and_immutable_input(self):
+        data = fixture()
+        source = self.root/'storyboard.json'
+        source.write_text(json.dumps(data, ensure_ascii=False))
+        original = source.read_bytes()
+        output = self.root/'output'
+        first = r.render(source, output, FONT)
+        self.assertEqual(first['status'], 'complete')
+        self.assertEqual(first['scene_order'], [s['id'] for s in data['scenes']])
+        self.assertEqual(first['qc']['duration_seconds'], 15)
+        self.assertIsNone(first['qc']['audio_codec'])
+        self.assertEqual(len(list((output/'scenes').glob('*.mp4'))), 5)
+        self.assertTrue((output/'subtitles.srt').is_file())
+        second = r.render(source, output, FONT)
+        self.assertTrue(all(e['cache_hit'] for e in second['scenes']))
+        self.assertEqual(source.read_bytes(), original)
+        self.assertEqual([e['onscreen_text'] for e in second['scenes']], [s['onscreen_text'] for s in data['scenes']])
+        # Corrupt one clip: only that scene must be regenerated, verified with real ffprobe.
+        clip = next((output/'cache').glob('*/clip.mp4'))
+        clip.write_bytes(b'corrupt')
+        third = r.render(source, output, FONT)
+        self.assertEqual(sum(not e['cache_hit'] for e in third['scenes']), 1)
+
+    def test_aac_adapter_and_reject_truncation(self):
+        scene = fixture()['scenes'][0]
+        # Synthetic test fixture only; never used or described as real narration.
+        wav = self.root/(scene['id']+'.wav')
+        r.command(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=frequency=440:duration=1', wav])
+        provider = r.RecordedSpeech(self.root, [scene])
+        work = self.root/'work'
+        work.mkdir()
+        clip, audio = r.encode_scene(scene, fixture(), Path(FONT), work, provider)
+        self.assertTrue(audio)
+        self.assertEqual(r.verify_video(clip, 3, True)['audio_codec'], 'aac')
+        data = fixture()
+        for item in data['scenes'][1:]:
+            shutil.copy2(wav, self.root/(item['id']+'.wav'))
+        source = self.root/'storyboard.json'
+        source.write_text(json.dumps(data, ensure_ascii=False))
+        final = r.render(source, self.root/'audio-output', FONT, speech_dir=self.root)
+        self.assertEqual(final['qc']['audio_codec'], 'aac')
+        self.assertEqual(final['speech_status'], 'provided_audio')
+        r.command(['ffmpeg','-v','error','-y','-f','lavfi','-i','sine=frequency=440:duration=4', wav])
+        with self.assertRaisesRegex(r.RenderError, 'refusing to truncate'):
+            provider.synthesize(scene['id'], scene['narration'], {}, 3, work)
 
 
 if __name__ == '__main__':
