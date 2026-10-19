@@ -81,7 +81,7 @@ jobs:
           )
           assert sample["scenes"][0]["narration"] == original_narration
           Path("/tmp/naval-test-001-edge-tts-sample/storyboard.json").write_text(
-              json.dumps(sample, ensure_ascii=False, indent=2) + "\\n",
+              json.dumps(sample, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
           print("Prepared first scene only; narration preserved verbatim.")
