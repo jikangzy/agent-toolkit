@@ -9,6 +9,7 @@ on:
     branches:
       - main
       - feat/book-video-renderer-mvp
+      - experiment/one-shot-naval-tts
     paths:
       - "tools/book-video-renderer/**"
       - ".github/workflows/book-video-renderer-tests.yml"
@@ -50,7 +51,7 @@ jobs:
           BOOK_VIDEO_FONT="$FONT" python -m unittest discover -s tools/book-video-renderer/tests -v
 
   render-tts-sample:
-    if: github.event_name == 'workflow_dispatch' && inputs.render_tts_sample
+    if: (github.event_name == 'workflow_dispatch' && inputs.render_tts_sample) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/one-shot-naval-tts')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
