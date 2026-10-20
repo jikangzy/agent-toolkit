@@ -66,30 +66,110 @@ jobs:
         run: |
           python -m pip install -r tools/book-video-renderer/requirements.txt
           python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
-      - name: Validate full Naval storyboard
+      - name: Pre-synthesize narration and fit scene durations
         run: |
+          mkdir -p /tmp/naval-test-001-full-edge-tts/audio output/naval-test-001-full-edge-tts
           python - <<'PY'
+          import asyncio
+          import hashlib
           import json
+          import math
+          import subprocess
           from pathlib import Path
+          import edge_tts
 
           source = Path("examples/book-video/naval-test-001/storyboard.json")
           data = json.loads(source.read_text(encoding="utf-8"))
-          duration = sum(scene["duration_seconds"] for scene in data["scenes"])
+          original_bytes = source.read_bytes()
           assert len(data["scenes"]) == 10
-          assert duration == 113
-          assert data["format"]["target_duration_seconds"] == 120
-          print(f"Rendering {len(data['scenes'])} scenes; {duration}s scene total; narration preserved verbatim.")
+          voice_id = "zh-CN-YunxiNeural"
+          speed = float(data["voice"].get("speed", 1.0))
+          if not 0.5 <= speed <= 2.0:
+              raise ValueError("voice.speed must be between 0.5 and 2.0")
+          rate = f"{round((speed - 1.0) * 100):+d}%"
+          audio_dir = Path("/tmp/naval-test-001-full-edge-tts/audio")
+          output_dir = Path("output/naval-test-001-full-edge-tts")
+          report = {}
+
+          def run(args):
+              return subprocess.run(args, check=True, capture_output=True, text=True)
+
+          async def synthesize_all():
+              for scene in data["scenes"]:
+                  scene_id = scene["id"]
+                  mp3 = audio_dir / f"{scene_id}.mp3"
+                  wav = audio_dir / f"{scene_id}.wav"
+                  await edge_tts.Communicate(
+                      text=scene["narration"], voice=voice_id, rate=rate
+                  ).save(str(mp3))
+                  run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+                       "-i", str(mp3), "-ar", "48000", "-ac", "2", str(wav)])
+                  raw = run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                             "-of", "default=noprint_wrappers=1:nokey=1", str(wav)]).stdout.strip()
+                  audio_seconds = float(raw)
+                  original_seconds = float(scene["duration_seconds"])
+                  allocated_seconds = max(
+                      original_seconds,
+                      math.ceil((audio_seconds + 0.25) * 30) / 30
+                  )
+                  scene["duration_seconds"] = allocated_seconds
+                  report[scene_id] = {
+                      "speech_seconds": round(audio_seconds, 3),
+                      "original_scene_seconds": original_seconds,
+                      "allocated_scene_seconds": allocated_seconds,
+                  }
+                  print(f"{scene_id}: speech={audio_seconds:.3f}s, scene={allocated_seconds:.3f}s")
+
+          asyncio.run(synthesize_all())
+          data["format"]["target_duration_seconds"] = sum(
+              scene["duration_seconds"] for scene in data["scenes"]
+          )
+          derived = Path("/tmp/naval-test-001-full-edge-tts/storyboard.json")
+          derived.parent.mkdir(parents=True, exist_ok=True)
+          derived.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+          (output_dir / "timing-report.json").write_text(
+              json.dumps({
+                  "voice": voice_id,
+                  "rate": rate,
+                  "source_storyboard_sha256": hashlib.sha256(original_bytes).hexdigest(),
+                  "derived_target_duration_seconds": data["format"]["target_duration_seconds"],
+                  "scenes": report,
+              }, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8",
+          )
+          assert source.read_bytes() == original_bytes, "The committed storyboard must remain unchanged"
+          print(f"Prepared full narration; derived video target={data['format']['target_duration_seconds']:.3f}s.")
           PY
-      - name: Render full Naval video with real Chinese speech
+      - name: Render full Naval video with pre-synthesized Chinese speech
         run: |
           FONT="$(fc-match -f '%{file}' 'Noto Sans CJK SC' | head -n 1)"
           test -n "$FONT"
           python tools/book-video-renderer/renderer.py \
-            examples/book-video/naval-test-001/storyboard.json \
+            /tmp/naval-test-001-full-edge-tts/storyboard.json \
             --font "$FONT" \
             --output output/naval-test-001-full-edge-tts \
-            --tts-provider edge-tts \
-            --tts-voice zh-CN-YunxiNeural
+            --tts-audio-dir /tmp/naval-test-001-full-edge-tts/audio
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          source = Path("examples/book-video/naval-test-001/storyboard.json")
+          output = Path("output/naval-test-001-full-edge-tts")
+          manifest_path = output / "manifest.json"
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          report = json.loads((output / "timing-report.json").read_text(encoding="utf-8"))
+          manifest["source_storyboard_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+          manifest["speech_status"] = "generated_audio"
+          manifest["tts_provider"] = "EdgeTTS (pre-synthesized WAV via RecordedSpeech)"
+          manifest["tts_voice"] = report["voice"]
+          manifest["provider_notes"] = [
+              "Narration was synthesized by the external Edge TTS service before rendering.",
+              "Scene durations in a temporary derived storyboard were extended to fit the full narration; the source storyboard was not modified."
+          ]
+          manifest["timing_report"] = report["scenes"]
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+          PY
       - name: Upload full video and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -99,5 +179,6 @@ jobs:
             output/naval-test-001-full-edge-tts/final.mp4
             output/naval-test-001-full-edge-tts/manifest.json
             output/naval-test-001-full-edge-tts/subtitles.srt
+            output/naval-test-001-full-edge-tts/timing-report.json
           if-no-files-found: warn
           retention-days: 7
