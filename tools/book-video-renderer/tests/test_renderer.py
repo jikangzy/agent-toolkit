@@ -208,6 +208,50 @@ class UnitTests(unittest.TestCase):
                 )
             synthesize.assert_not_called()
 
+    def test_preflight_collects_word_boundaries_from_same_audio_stream(self):
+        calls = []
+
+        class FakeCommunicate:
+            def __init__(self, text, voice, rate):
+                self.text = text
+                calls.append({"text": text, "voice": voice, "rate": rate})
+
+            async def stream(self):
+                yield {"type": "audio", "data": b"fake-mp3"}
+                yield {
+                    "type": "WordBoundary",
+                    "offset": 2_000_000,
+                    "duration": 4_000_000,
+                    "text": self.text,
+                }
+
+        class FakeProvider:
+            edge_tts = types.SimpleNamespace(Communicate=FakeCommunicate)
+            voice_id = "zh-CN-YunxiNeural"
+
+            @staticmethod
+            def rate_for(voice):
+                return "+0%"
+
+        data = fixture()
+        with patch.object(prepare_narration.renderer, "EdgeTTS", return_value=FakeProvider()), patch.object(
+            prepare_narration.renderer, "command"
+        ), patch.object(
+            prepare_narration.renderer, "probe",
+            return_value={"streams": [{"codec_type": "audio"}], "format": {"duration": "1.25"}},
+        ):
+            durations, rate, boundaries = asyncio.run(
+                prepare_narration.synthesize_audio(data, self.root/"audio", "zh-CN-YunxiNeural")
+            )
+
+        self.assertEqual(rate, "+0%")
+        self.assertEqual(len(calls), len(data["scenes"]))
+        self.assertEqual(durations["scene_001"], 1.25)
+        self.assertEqual(boundaries["scene_001"][0]["start_seconds"], 0.2)
+        self.assertEqual(boundaries["scene_001"][0]["end_seconds"], 0.6)
+        self.assertEqual(boundaries["scene_001"][0]["text"], data["scenes"][0]["narration"])
+        self.assertTrue((self.root/"audio/scene_001.mp3").is_file())
+
     def test_preflight_timing_extends_only_overlong_scenes_without_mutating_source(self):
         data = fixture()
         original = copy.deepcopy(data)
