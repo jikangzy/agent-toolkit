@@ -126,7 +126,7 @@ jobs:
           )
           derived = Path("/tmp/naval-test-001-full-edge-tts/storyboard.json")
           derived.parent.mkdir(parents=True, exist_ok=True)
-          derived.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+          derived.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           (output_dir / "timing-report.json").write_text(
               json.dumps({
                   "voice": voice_id,
@@ -134,7 +134,7 @@ jobs:
                   "source_storyboard_sha256": hashlib.sha256(original_bytes).hexdigest(),
                   "derived_target_duration_seconds": data["format"]["target_duration_seconds"],
                   "scenes": report,
-              }, ensure_ascii=False, indent=2) + "\\n",
+              }, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
           assert source.read_bytes() == original_bytes, "The committed storyboard must remain unchanged"
@@ -168,7 +168,7 @@ jobs:
               "Scene durations in a temporary derived storyboard were extended to fit the full narration; the source storyboard was not modified."
           ]
           manifest["timing_report"] = report["scenes"]
-          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+          manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           PY
       - name: Upload full video and diagnostics
         if: always()
