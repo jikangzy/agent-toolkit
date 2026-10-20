@@ -129,7 +129,7 @@ def subtitles(data):
 def resolve_music(data, music_file=None, volume_override=None):
     """Validate an optional local music track; never synthesize or download music."""
     music = data.get('music', {})
-    enabled = music.get('enabled', False)
+    enabled = music.get('enabled', True)
     if music_file is None:
         if volume_override is not None:
             raise RenderError('--music-volume-db requires --music-file')
@@ -457,7 +457,7 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         source_hash = digest(source)
         data = load_storyboard(source)
         music_path, music_volume_db = resolve_music(data, music_file, music_volume_db)
-        music_enabled = data.get('music', {}).get('enabled', False)
+        music_enabled = data.get('music', {}).get('enabled', True)
         assets_dir = Path(assets_dir).resolve() if assets_dir is not None else None
         if assets_dir is not None and not assets_dir.is_dir():
             raise RenderError(f'Visual assets directory does not exist: {assets_dir}')
