@@ -140,7 +140,7 @@ class UnitTests(unittest.TestCase):
         self.assertIsNotNone(mapped)
         self.assertEqual("".join(item["text"] for item in mapped), narration)
         self.assertIn("，", mapped[0]["text"] + mapped[1]["text"])
-        self.assertIn("《", mapped[2]["text"])
+        self.assertIn("《", mapped[1]["text"])
         self.assertTrue(mapped[-1]["text"].endswith("。"))
 
     def test_aligned_srt_uses_word_timing_and_falls_back_without_text_mismatch(self):
