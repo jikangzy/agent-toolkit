@@ -57,6 +57,11 @@ Install the separate optional dependency (it is intentionally excluded from the 
 
 ```bash
 python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
+```
+
+For a quick render when you already know the narration fits each scene, the CLI can synthesize inline:
+
+```bash
 python tools/book-video-renderer/renderer.py \
   examples/book-video/naval-test-001/storyboard.json \
   --output output/naval-test-001-edge-tts \
@@ -64,7 +69,27 @@ python tools/book-video-renderer/renderer.py \
   --tts-voice zh-CN-YunxiNeural
 ```
 
-The default voice is `zh-CN-YunxiNeural`; use `--tts-voice` to select another Edge TTS voice. The storyboard's `voice.speed` is mapped to the service's speech-rate setting. The provider writes real generated MP3 speech and FFmpeg encodes it to AAC in the video. It never changes narration text. If speech exceeds a scene's duration, only a small speed-up (up to 15%) is allowed; otherwise rendering fails with a clear error instead of truncating words.
+For multi-scene videos, **prefer the preflight path below**. Actual spoken duration can differ substantially from estimates in the storyboard; this path measures each generated WAV and extends only a derived storyboard's scene timings before final rendering. The original storyboard and narration are not rewritten.
+
+```bash
+# Keep the derived storyboard outside the renderer output directory.
+python tools/book-video-renderer/prepare_narration.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --audio-dir output/naval-test-001/audio \
+  --derived-storyboard .local/runs/naval-test-001/storyboard.render.json \
+  --timing-report output/naval-test-001/timing-report.json \
+  --voice zh-CN-YunxiNeural
+
+python tools/book-video-renderer/renderer.py \
+  .local/runs/naval-test-001/storyboard.render.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --tts-audio-dir output/naval-test-001/audio \
+  --tts-audio-provider edge-tts \
+  --tts-audio-voice zh-CN-YunxiNeural
+```
+
+The preflight script writes one MP3 and WAV per scene, measures WAV durations, adds a default 250 ms margin rounded to a video frame, and writes a timing report. The renderer records `speech_status: generated_audio`, the provider/voice, and the external-service notice in `manifest.json`. The `--tts-audio-provider` / `--tts-audio-voice` flags describe the source of the supplied WAVs; they do not trigger another network request.
 
 **Important limitations:** Edge TTS is an online, third-party service, not an offline engine or a guaranteed production API. It requires network access and may change or throttle. Narration text is sent to that service. The provider is optional and replaceable; the default renderer still performs no TTS network calls. Subtitle timing remains scene-proportional in this iteration, so it is not yet word-level aligned to the generated audio.
 
