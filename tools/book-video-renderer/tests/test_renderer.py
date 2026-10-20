@@ -137,6 +137,28 @@ class UnitTests(unittest.TestCase):
         with self.assertRaisesRegex(r.RenderError, 'multiple visual assets'):
             r.find_visual_asset(assets, 'scene_001')
 
+    def test_preflight_refuses_to_overwrite_source_or_each_other(self):
+        with patch.object(prepare_narration.asyncio, 'run') as synthesize:
+            with self.assertRaisesRegex(
+                prepare_narration.renderer.RenderError, 'must not overwrite'
+            ):
+                prepare_narration.prepare(
+                    EXAMPLE, self.root/'audio', EXAMPLE, self.root/'timing-report.json'
+                )
+            with self.assertRaisesRegex(
+                prepare_narration.renderer.RenderError, 'must not overwrite'
+            ):
+                prepare_narration.prepare(
+                    EXAMPLE, self.root/'audio', self.root/'derived.json', EXAMPLE
+                )
+            with self.assertRaisesRegex(
+                prepare_narration.renderer.RenderError, 'must not overwrite'
+            ):
+                prepare_narration.prepare(
+                    EXAMPLE, self.root/'audio', self.root/'same.json', self.root/'same.json'
+                )
+            synthesize.assert_not_called()
+
     def test_preflight_timing_extends_only_overlong_scenes_without_mutating_source(self):
         data = fixture()
         original = copy.deepcopy(data)
