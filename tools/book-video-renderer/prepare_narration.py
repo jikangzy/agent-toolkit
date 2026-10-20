@@ -231,13 +231,15 @@ def build_aligned_srt(storyboard, boundaries_by_scene, max_chars=16, max_duratio
     )
     return srt, report
 
-def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None, margin_seconds=0.25):
+def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None, margin_seconds=0.25, subtitle_output=None):
     source = Path(source).resolve()
     audio_dir = Path(audio_dir).resolve()
     derived_storyboard = Path(derived_storyboard).resolve()
     timing_report = Path(timing_report).resolve()
+    subtitle_output = Path(subtitle_output).resolve() if subtitle_output else timing_report.with_name("aligned-subtitles.srt")
 
-    if derived_storyboard == source or timing_report == source or derived_storyboard == timing_report:
+    output_paths = [derived_storyboard, timing_report, subtitle_output]
+    if source in output_paths or len(set(output_paths)) != len(output_paths):
         raise renderer.RenderError("Output paths must not overwrite the source storyboard or each other")
     if not 0 <= margin_seconds <= 5:
         raise renderer.RenderError("margin-seconds must be between 0 and 5")
@@ -249,8 +251,9 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
     original_narration = [scene["narration"] for scene in data["scenes"]]
     voice_id = voice_id or "zh-CN-YunxiNeural"
 
-    durations, rate = asyncio.run(synthesize_audio(data, audio_dir, voice_id))
+    durations, rate, boundaries_by_scene = asyncio.run(synthesize_audio(data, audio_dir, voice_id))
     derived, scenes_report = allocate_scene_durations(data, durations, margin_seconds)
+    aligned_srt, subtitle_report = build_aligned_srt(derived, boundaries_by_scene)
     if [scene["id"] for scene in derived["scenes"]] != original_ids:
         raise renderer.RenderError("Scene order changed during timing preparation")
     if [scene["narration"] for scene in derived["scenes"]] != original_narration:
@@ -258,7 +261,9 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
 
     derived_storyboard.parent.mkdir(parents=True, exist_ok=True)
     timing_report.parent.mkdir(parents=True, exist_ok=True)
+    subtitle_output.parent.mkdir(parents=True, exist_ok=True)
     renderer.save_json(derived_storyboard, derived)
+    subtitle_output.write_text(aligned_srt, encoding="utf-8")
     report = {
         "source_storyboard_sha256": source_hash,
         "derived_storyboard_sha256": renderer.digest(derived_storyboard),
@@ -268,6 +273,8 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
         "margin_seconds": margin_seconds,
         "derived_target_duration_seconds": derived["format"]["target_duration_seconds"],
         "scenes": scenes_report,
+        "subtitle_output": str(subtitle_output),
+        "subtitle_alignment": subtitle_report,
     }
     renderer.save_json(timing_report, report)
     if hashlib.sha256(source.read_bytes()).hexdigest() != source_hash:
@@ -281,12 +288,13 @@ def main():
     parser.add_argument("--audio-dir", type=Path, required=True, help="Directory for generated MP3 and WAV files")
     parser.add_argument("--derived-storyboard", type=Path, required=True, help="Output path outside the renderer output directory")
     parser.add_argument("--timing-report", type=Path, required=True)
+    parser.add_argument("--subtitle-output", type=Path, help="Output SRT with word-boundary timing when available")
     parser.add_argument("--voice", default="zh-CN-YunxiNeural")
     parser.add_argument("--margin-seconds", type=float, default=0.25)
     args = parser.parse_args()
     try:
         report = prepare(args.storyboard, args.audio_dir, args.derived_storyboard,
-                         args.timing_report, args.voice, args.margin_seconds)
+                         args.timing_report, args.voice, args.margin_seconds, args.subtitle_output)
         print(json.dumps({
             "status": "complete",
             "provider": report["provider"],
@@ -296,6 +304,8 @@ def main():
             "derived_storyboard": str(args.derived_storyboard),
             "audio_dir": str(args.audio_dir),
             "timing_report": str(args.timing_report),
+            "subtitle_output": report["subtitle_output"],
+            "subtitle_alignment": report["subtitle_alignment"],
         }, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f"Narration preparation failed: {exc}", file=sys.stderr)
