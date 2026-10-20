@@ -103,6 +103,11 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
     derived_storyboard = Path(derived_storyboard).resolve()
     timing_report = Path(timing_report).resolve()
 
+    if derived_storyboard == source or timing_report == source or derived_storyboard == timing_report:
+        raise renderer.RenderError("Output paths must not overwrite the source storyboard or each other")
+    if not 0 <= margin_seconds <= 5:
+        raise renderer.RenderError("margin-seconds must be between 0 and 5")
+
     source_bytes = source.read_bytes()
     source_hash = hashlib.sha256(source_bytes).hexdigest()
     data = renderer.load_storyboard(source)
