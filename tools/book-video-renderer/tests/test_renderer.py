@@ -100,6 +100,55 @@ class UnitTests(unittest.TestCase):
             self.assertLess(start, end)
             previous = end
 
+    def test_word_boundary_mapping_preserves_exact_source_text(self):
+        narration = "为什么有人睡觉？"
+        boundaries = [
+            {"start_seconds": 0.0, "end_seconds": 0.4, "text": "为什么"},
+            {"start_seconds": 0.4, "end_seconds": 0.7, "text": "有人"},
+            {"start_seconds": 0.7, "end_seconds": 1.0, "text": "睡觉"},
+            {"start_seconds": 1.0, "end_seconds": 1.2, "text": "？"},
+        ]
+        mapped = prepare_narration.map_boundaries_to_source(narration, boundaries)
+        self.assertIsNotNone(mapped)
+        self.assertEqual("".join(item["text"] for item in mapped), narration)
+
+        mismatch = prepare_narration.map_boundaries_to_source(narration, [
+            {"start_seconds": 0.0, "end_seconds": 0.5, "text": "不匹配"}
+        ])
+        self.assertIsNone(mismatch)
+
+    def test_aligned_srt_uses_word_timing_and_falls_back_without_text_mismatch(self):
+        data = fixture()
+        boundaries = {
+            "scene_001": [
+                {"start_seconds": 0.0, "end_seconds": 0.4, "text": "这是第"},
+                {"start_seconds": 0.4, "end_seconds": 0.8, "text": "1个场景。"},
+            ],
+            "scene_002": [
+                {"start_seconds": 0.0, "end_seconds": 0.5, "text": "wrong"}
+            ],
+        }
+        srt, report = prepare_narration.build_aligned_srt(data, boundaries)
+        self.assertEqual(report["scene_001"]["alignment"], "word_boundary")
+        self.assertEqual(report["scene_002"]["alignment"], "scene_proportional_fallback")
+        self.assertIn("00:00:00,000 --> 00:00:00,400", srt)
+        self.assertIn("00:00:03,000", srt)
+        cue_text = [
+            line for line in srt.splitlines()
+            if line and not line.isdigit() and " --> " not in line
+        ]
+        self.assertEqual("".join(cue_text), "".join(scene["narration"] for scene in data["scenes"]))
+
+    def test_external_srt_validation_checks_timestamps_and_video_duration(self):
+        valid = self.root/'valid.srt'
+        valid.write_text("1\\n00:00:00,000 --> 00:00:01,000\\n中文字幕\\n", encoding="utf-8")
+        result = r.validate_subtitle_file(valid, 3)
+        self.assertEqual(result["cue_count"], 1)
+        invalid = self.root/'invalid.srt'
+        invalid.write_text("1\\n00:00:02,000 --> 00:00:04,000\\n越界字幕\\n", encoding="utf-8")
+        with self.assertRaisesRegex(r.RenderError, 'beyond the final video duration'):
+            r.validate_subtitle_file(invalid, 3)
+
     def test_stamp_rollover(self):
         self.assertEqual(r.stamp(3599.9996), '01:00:00,000')
 
@@ -464,6 +513,23 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(result['qc']['audio_codec'], 'aac')
         self.assertEqual(result['music']['status'], 'supplied')
         self.assertTrue(any('NO audio track' in item for item in result['fallbacks']))
+
+    def test_supplied_aligned_subtitles_are_validated_and_burned(self):
+        data = fixture()
+        source = self.root/'storyboard.json'
+        source.write_text(json.dumps(data, ensure_ascii=False))
+        custom_srt = self.root/'aligned.srt'
+        custom_srt.write_text(
+            "1\\n00:00:00,000 --> 00:00:01,000\\n这是第一条字幕。\\n\\n"
+            "2\\n00:00:01,000 --> 00:00:02,000\\n这是第二条字幕。\\n",
+            encoding='utf-8'
+        )
+        result = r.render(source, self.root/'aligned-output', FONT, subtitle_file=custom_srt)
+        self.assertEqual(result['status'], 'complete')
+        self.assertEqual(result['subtitle_alignment']['status'], 'supplied_srt')
+        self.assertEqual(result['subtitle_alignment']['cue_count'], 2)
+        self.assertEqual((self.root/'aligned-output/subtitles.srt').read_text(), custom_srt.read_text())
+        self.assertFalse(any('scene-proportional timing' in item for item in result['fallbacks']))
 
     def test_aac_adapter_and_reject_truncation(self):
         scene = fixture()['scenes'][0]
