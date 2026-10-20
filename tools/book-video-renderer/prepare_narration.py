@@ -8,6 +8,7 @@ import copy
 import hashlib
 import json
 import math
+import unicodedata
 from pathlib import Path
 import sys
 
