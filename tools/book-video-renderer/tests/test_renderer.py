@@ -639,5 +639,75 @@ class IntegrationTests(unittest.TestCase):
             provider.synthesize(scene['id'], scene['narration'], {}, 3, work)
 
 
+    def test_real_assets_audio_music_and_aligned_subtitles_end_to_end(self):
+        """Exercise the complete media assembly path with explicit local test fixtures."""
+        data = fixture()
+        source = self.root/'storyboard.json'
+        source.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+        original = source.read_bytes()
+
+        assets = self.root/'images'
+        assets.mkdir()
+        audio_dir = self.root/'narration'
+        audio_dir.mkdir()
+        for index, scene in enumerate(data['scenes']):
+            # Synthetic fixtures verify the asset contract; they are not represented as AI art or real speech.
+            r.Image.new('RGB', (640, 960), (25 + index*25, 50 + index*20, 90 + index*15)).save(
+                assets/(scene['id']+'.png')
+            )
+            r.command([
+                'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+                '-f', 'lavfi', '-i', f'sine=frequency={440 + index*40}:duration=1.2',
+                '-ar', '48000', '-ac', '2', audio_dir/(scene['id']+'.wav')
+            ])
+
+        music = self.root/'music.wav'
+        r.command([
+            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+            '-f', 'lavfi', '-i', 'sine=frequency=180:duration=2',
+            '-ar', '48000', '-ac', '2', music
+        ])
+        subtitle_file = self.root/'aligned.srt'
+        cues = []
+        for index, scene in enumerate(data['scenes']):
+            start, end = index*3, index*3+2
+            def stamp(seconds):
+                return f'00:00:{seconds:02d},000'
+            cues.append(
+                f'{index+1}\\n{stamp(start)} --> {stamp(end)}\\n{scene["narration"]}\\n'
+            )
+        subtitle_file.write_text('\\n'.join(cues), encoding='utf-8')
+
+        output = self.root/'full-media-output'
+        first = r.render(
+            source, output, FONT, assets_dir=assets, speech_dir=audio_dir,
+            music_file=music, subtitle_file=subtitle_file
+        )
+        self.assertEqual(first['status'], 'complete')
+        self.assertEqual(first['qc']['audio_codec'], 'aac')
+        self.assertEqual(first['qc']['width'], 1080)
+        self.assertEqual(first['qc']['height'], 1920)
+        self.assertEqual(first['qc']['fps'], 30)
+        self.assertEqual(len(first['scenes']), len(data['scenes']))
+        self.assertTrue(all(not scene['placeholder'] for scene in first['scenes']))
+        self.assertTrue(all(scene['audio'] for scene in first['scenes']))
+        self.assertTrue(all(Path(scene['audio_path']).is_file() for scene in first['scenes']))
+        self.assertTrue(first['visual_assets_supplied'])
+        self.assertEqual(first['music']['status'], 'supplied')
+        self.assertEqual(first['subtitle_alignment']['status'], 'supplied_srt')
+        self.assertEqual(first['subtitle_alignment']['cue_count'], len(data['scenes']))
+        self.assertFalse(any('placeholder visuals' in item for item in first['fallbacks']))
+        self.assertFalse(any('music omitted' in item for item in first['fallbacks']))
+        self.assertFalse(any('scene-proportional timing' in item for item in first['fallbacks']))
+        self.assertEqual(source.read_bytes(), original)
+
+        second = r.render(
+            source, output, FONT, assets_dir=assets, speech_dir=audio_dir,
+            music_file=music, subtitle_file=subtitle_file
+        )
+        self.assertTrue(all(scene['cache_hit'] for scene in second['scenes']))
+        self.assertEqual(source.read_bytes(), original)
+
+
 if __name__ == '__main__':
     unittest.main()
