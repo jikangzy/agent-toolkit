@@ -188,7 +188,7 @@ async def synthesize_audio(storyboard, audio_dir, voice_id, force=False, cache_s
             "boundaries": scene_boundaries,
         }
         cache_temp = cache_path.with_name(cache_path.name + ".tmp")
-        cache_temp.write_text(json.dumps(cache, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        cache_temp.write_text(json.dumps(cache, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         cache_temp.replace(cache_path)
 
         durations[scene_id] = duration
@@ -339,7 +339,10 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
     original_narration = [scene["narration"] for scene in data["scenes"]]
     voice_id = voice_id or "zh-CN-YunxiNeural"
 
-    audio_cache = {}\n    durations, rate, boundaries_by_scene = asyncio.run(\n        synthesize_audio(data, audio_dir, voice_id, force=force, cache_status=audio_cache)\n    )
+    audio_cache = {}
+    durations, rate, boundaries_by_scene = asyncio.run(
+        synthesize_audio(data, audio_dir, voice_id, force=force, cache_status=audio_cache)
+    )
     derived, scenes_report = allocate_scene_durations(data, durations, margin_seconds)
     aligned_srt, subtitle_report = build_aligned_srt(derived, boundaries_by_scene)
     if [scene["id"] for scene in derived["scenes"]] != original_ids:
@@ -362,7 +365,8 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
         "derived_target_duration_seconds": derived["format"]["target_duration_seconds"],
         "scenes": scenes_report,
         "subtitle_output": str(subtitle_output),
-        "subtitle_alignment": subtitle_report,\n        "audio_cache": audio_cache,
+        "subtitle_alignment": subtitle_report,
+        "audio_cache": audio_cache,
     }
     renderer.save_json(timing_report, report)
     if hashlib.sha256(source.read_bytes()).hexdigest() != source_hash:
@@ -378,7 +382,8 @@ def main():
     parser.add_argument("--timing-report", type=Path, required=True)
     parser.add_argument("--subtitle-output", type=Path, help="Output SRT with word-boundary timing when available")
     parser.add_argument("--voice", default="zh-CN-YunxiNeural")
-    parser.add_argument("--margin-seconds", type=float, default=0.25)\n    parser.add_argument("--force", action="store_true", help="Ignore the narration cache and re-synthesize every scene")
+    parser.add_argument("--margin-seconds", type=float, default=0.25)
+    parser.add_argument("--force", action="store_true", help="Ignore the narration cache and re-synthesize every scene")
     args = parser.parse_args()
     try:
         report = prepare(args.storyboard, args.audio_dir, args.derived_storyboard,
@@ -393,7 +398,8 @@ def main():
             "audio_dir": str(args.audio_dir),
             "timing_report": str(args.timing_report),
             "subtitle_output": report["subtitle_output"],
-            "subtitle_alignment": report["subtitle_alignment"],\n            "audio_cache": report["audio_cache"],
+            "subtitle_alignment": report["subtitle_alignment"],
+            "audio_cache": report["audio_cache"],
         }, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f"Narration preparation failed: {exc}", file=sys.stderr)
