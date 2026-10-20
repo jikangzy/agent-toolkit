@@ -51,6 +51,23 @@ python tools/book-video-renderer/renderer.py \
 
 Accepted image formats: PNG, JPG/JPEG, WebP. Use exactly one image per scene ID. Missing images fall back to clearly labeled placeholders and are listed in `manifest.json`; invalid or ambiguous assets fail clearly. Asset SHA-256 hashes participate in per-scene cache keys, so replacing one image regenerates only that scene. Image generation still happens outside the CLI, using the agent's available image tool; the renderer never pretends a placeholder is a generated image.
 
+### Optional background music
+
+The renderer can mix a **local audio file** into the final MP4. It does not generate or download music. Set `music.enabled: true` in the storyboard (the default for this schema), then provide the file:
+
+```bash
+python tools/book-video-renderer/renderer.py \
+  .local/runs/naval-test-001/storyboard.render.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --tts-audio-dir output/naval-test-001/audio \
+  --tts-audio-provider edge-tts \
+  --tts-audio-voice zh-CN-YunxiNeural \
+  --music-file output/naval-test-001/music.mp3
+```
+
+The default music gain comes from `music.volume_db` in the storyboard (for example, `-24` dB). Override it with `--music-volume-db -24`; the accepted range is `-60` to `0` dB. FFmpeg loops short music files and trims them to the video duration, then mixes the track under narration. Music-only output is also supported, but the manifest still clearly marks narration as missing. If music is enabled but no file is supplied, rendering continues without music and records the fallback in `manifest.json`. A supplied file is validated as an audio stream, and its hash, filename, and gain are recorded in the manifest. Music is a final-assembly input, so changing the music does not invalidate the per-scene video cache.
+
 ### Optional real Chinese TTS
 
 Install the separate optional dependency (it is intentionally excluded from the offline base requirements):

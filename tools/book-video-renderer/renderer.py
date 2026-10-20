@@ -126,6 +126,31 @@ def subtitles(data):
     return '\n'.join(entries)
 
 
+def resolve_music(data, music_file=None, volume_override=None):
+    """Validate an optional local music track; never synthesize or download music."""
+    music = data.get('music', {})
+    enabled = music.get('enabled', True)
+    if music_file is None:
+        if volume_override is not None:
+            raise RenderError('--music-volume-db requires --music-file')
+        return None, None
+    if not enabled:
+        raise RenderError('--music-file was supplied but storyboard music.enabled is false')
+    path = Path(music_file).expanduser().resolve()
+    if not path.is_file():
+        raise RenderError(f'Background music file does not exist: {path}')
+    metadata = probe(path)
+    if not any(stream.get('codec_type') == 'audio' for stream in metadata.get('streams', [])):
+        raise RenderError(f'Background music file contains no audio stream: {path}')
+    try:
+        volume_db = float(volume_override if volume_override is not None else music.get('volume_db', -24))
+    except (TypeError, ValueError) as exc:
+        raise RenderError('Background music volume must be a number between -60 and 0 dB') from exc
+    if not math.isfinite(volume_db) or not -60 <= volume_db <= 0:
+        raise RenderError('Background music volume must be between -60 and 0 dB')
+    return path, volume_db
+
+
 class TTSProvider(Protocol):
     """Replace with a local/remote synthesizer; pass narration verbatim.
 
@@ -418,7 +443,7 @@ def encode_scene(scene, data, font, work, provider, visual_asset=None):
     return clip, audio is not None
 
 
-def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None, speech_provider_name=None, speech_voice=None):
+def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None, speech_provider_name=None, speech_voice=None, music_file=None, music_volume_db=None):
     if attempts < 1 or attempts > 10:
         raise RenderError('attempts must be between 1 and 10')
     source, output = Path(source).resolve(), Path(output).resolve()
@@ -431,6 +456,8 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
     try:
         source_hash = digest(source)
         data = load_storyboard(source)
+        music_path, music_volume_db = resolve_music(data, music_file, music_volume_db)
+        music_enabled = data.get('music', {}).get('enabled', True)
         assets_dir = Path(assets_dir).resolve() if assets_dir is not None else None
         if assets_dir is not None and not assets_dir.is_dir():
             raise RenderError(f'Visual assets directory does not exist: {assets_dir}')
@@ -488,8 +515,19 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             manifest['fallbacks'].append(provider.fallback)
         if getattr(provider, 'provider_notice', None):
             manifest.setdefault('provider_notes', []).append(provider.provider_notice)
-        if data.get('music', {}).get('enabled'):
-            manifest['fallbacks'].append('Requested background music omitted; no music provider configured.')
+        if music_path is not None:
+            manifest['music'] = {
+                'status': 'supplied',
+                'file': music_path.name,
+                'sha256': digest(music_path),
+                'volume_db': music_volume_db,
+                'looped_or_trimmed_to_video': True,
+            }
+        elif music_enabled:
+            manifest['music'] = {'status': 'omitted', 'volume_db': data.get('music', {}).get('volume_db', -24)}
+            manifest['fallbacks'].append('Requested background music omitted; pass --music-file to mix a local audio track.')
+        else:
+            manifest['music'] = {'status': 'disabled'}
         (output/'subtitles.srt').write_text(subtitles(data), encoding='utf-8')
         scenes_dir, cache = output/'scenes', output/'cache'
         scenes_dir.mkdir(exist_ok=True)
@@ -557,17 +595,39 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         if not family or any(c in family for c in ",':\\"):
             raise RenderError('Unsupported subtitle font family name')
         final_temp = output/'final.partial.mp4'
-        cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '1', '-i', 'concat.txt',
-               '-vf', f"subtitles=subtitles.srt:fontsdir=fonts:force_style='FontName={family},FontSize=8,MarginV=24,Outline=1'",
-               '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p', '-threads', '2']
-        cmd += ['-c:a', 'aac'] if audio_flags[0] else ['-an']
+        total_duration = sum(frame_count(s)/FPS for s in data['scenes'])
+        cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '1', '-i', 'concat.txt']
+        if music_path is not None:
+            cmd += ['-stream_loop', '-1', '-i', music_path]
+        cmd += ['-vf', f"subtitles=subtitles.srt:fontsdir=fonts:force_style='FontName={family},FontSize=8,MarginV=24,Outline=1'",
+                '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-pix_fmt', 'yuv420p', '-threads', '2']
+        has_final_audio = bool(audio_flags[0] or music_path is not None)
+        if music_path is not None:
+            music_filter = (
+                f"[1:a]volume={music_volume_db}dB,atrim=duration={total_duration:.6f},"
+                "asetpts=N/SR/TB[music]"
+            )
+            if audio_flags[0]:
+                filter_complex = (
+                    "[0:a]aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo[narration];"
+                    + music_filter
+                    + ";[narration][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[aout]"
+                )
+            else:
+                filter_complex = music_filter + ";[music]anull[aout]"
+            cmd += ['-filter_complex', filter_complex, '-map', '0:v:0', '-map', '[aout]',
+                    '-c:a', 'aac', '-ar', '48000', '-ac', '2']
+        elif audio_flags[0]:
+            cmd += ['-c:a', 'aac']
+        else:
+            cmd += ['-an']
         cmd += ['-movflags', '+faststart', final_temp.name]
         def assemble():
             # cwd is explicit; no process-global directory mutation.
             result = subprocess.run([str(a) for a in cmd], cwd=output, capture_output=True, text=True, timeout=1800)
             if result.returncode:
                 raise RenderError('Final assembly failed: ' + result.stderr[-4000:])
-            return verify_video(final_temp, sum(frame_count(s)/FPS for s in data['scenes']), audio_flags[0])
+            return verify_video(final_temp, total_duration, has_final_audio)
         manifest['qc'] = retry(assemble, attempts, lambda n,e: manifest.setdefault('assembly_errors', []).append(e))
         if digest(source) != source_hash:
             raise RenderError('Input storyboard changed during render')
@@ -596,13 +656,16 @@ def main():
     parser.add_argument('--tts-audio-voice', help='Voice ID used to pre-synthesize the WAVs')
     parser.add_argument('--tts-provider', choices=['none', 'edge-tts'], default='none', help='Optional speech synthesis provider; default none keeps rendering offline')
     parser.add_argument('--tts-voice', help='Edge TTS voice ID, e.g. zh-CN-YunxiNeural')
+    parser.add_argument('--music-file', type=Path, help='Optional local background music file; storyboard music.enabled must be true')
+    parser.add_argument('--music-volume-db', type=float, help='Override storyboard music.volume_db (allowed range: -60 to 0 dB)')
     args = parser.parse_args()
     try:
         result = render(args.storyboard, args.output, args.font, args.attempts,
                         speech_dir=args.tts_audio_dir, tts_provider=args.tts_provider,
                         tts_voice=args.tts_voice, assets_dir=args.assets_dir,
-                        speech_provider_name=args.tts_audio_provider, speech_voice=args.tts_audio_voice)
-        print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
+                        speech_provider_name=args.tts_audio_provider, speech_voice=args.tts_audio_voice,
+                        music_file=args.music_file, music_volume_db=args.music_volume_db)
+        print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'music': result.get('music'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f'Render failed: {exc}', file=sys.stderr)
         return 1
