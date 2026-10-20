@@ -49,15 +49,12 @@ def allocate_scene_durations(data, speech_durations, margin_seconds=0.25):
 
 
 async def synthesize_audio(storyboard, audio_dir, voice_id):
-    """Generate original narration to MP3, convert to WAV, and measure exact WAV duration."""
-    try:
-        provider = renderer.EdgeTTS(voice_id)
-    except renderer.RenderError:
-        raise
-
+    """Generate each scene's audio once, collect Edge TTS word boundaries, and measure WAV duration."""
+    provider = renderer.EdgeTTS(voice_id)
     audio_dir.mkdir(parents=True, exist_ok=True)
     rate = provider.rate_for(storyboard["voice"])
     durations = {}
+    boundaries_by_scene = {}
 
     for scene in storyboard["scenes"]:
         scene_id = scene["id"]
@@ -68,13 +65,37 @@ async def synthesize_audio(storyboard, audio_dir, voice_id):
         if wav_path.exists():
             wav_path.unlink()
 
+        scene_boundaries = []
         try:
             communicate = provider.edge_tts.Communicate(
                 text=scene["narration"],
                 voice=provider.voice_id,
                 rate=rate,
             )
-            await communicate.save(str(mp3_path))
+            stream = getattr(communicate, "stream", None)
+            if callable(stream):
+                # Save the same audio stream that emits timing metadata; avoid a
+                # second billable/network synthesis call just to get timestamps.
+                with mp3_path.open("wb") as audio_file:
+                    async for message in communicate.stream():
+                        if message.get("type") == "audio":
+                            audio_file.write(message["data"])
+                        elif message.get("type") == "WordBoundary":
+                            try:
+                                start_seconds = float(message["offset"]) / 10_000_000
+                                duration_seconds = float(message["duration"]) / 10_000_000
+                                text = str(message.get("text", ""))
+                            except (KeyError, TypeError, ValueError):
+                                continue
+                            if text and math.isfinite(start_seconds) and math.isfinite(duration_seconds) and duration_seconds > 0:
+                                scene_boundaries.append({
+                                    "start_seconds": start_seconds,
+                                    "end_seconds": start_seconds + duration_seconds,
+                                    "text": text,
+                                })
+            else:
+                # Compatibility fallback for older adapters that only expose save().
+                await communicate.save(str(mp3_path))
         except Exception as exc:
             raise renderer.RenderError(f"{scene_id}: Edge TTS synthesis failed: {exc}") from exc
 
@@ -92,10 +113,123 @@ async def synthesize_audio(storyboard, audio_dir, voice_id):
         if duration <= 0:
             raise renderer.RenderError(f"{scene_id}: converted WAV has invalid duration")
         durations[scene_id] = duration
-        print(f"{scene_id}: measured narration {duration:.3f}s")
+        boundaries_by_scene[scene_id] = scene_boundaries
+        print(f"{scene_id}: measured narration {duration:.3f}s; word boundaries={len(scene_boundaries)}")
 
-    return durations, rate
+    return durations, rate, boundaries_by_scene
 
+
+def map_boundaries_to_source(narration, boundaries):
+    """Map TTS boundary timings back to exact source-text slices, or return None."""
+    if not boundaries:
+        return None
+    source_positions = [index for index, char in enumerate(narration) if not char.isspace()]
+    source_normalized = "".join(narration[index] for index in source_positions)
+    boundary_normalized = "".join(
+        char for boundary in boundaries for char in str(boundary.get("text", "")) if not char.isspace()
+    )
+    if not source_positions or boundary_normalized != source_normalized:
+        return None
+
+    mapped = []
+    cursor = 0
+    for boundary in boundaries:
+        count = sum(1 for char in str(boundary.get("text", "")) if not char.isspace())
+        if count == 0:
+            continue
+        start_index = 0 if cursor == 0 else source_positions[cursor]
+        next_cursor = cursor + count
+        end_index = len(narration) if next_cursor == len(source_positions) else source_positions[next_cursor]
+        start_seconds = float(boundary["start_seconds"])
+        end_seconds = float(boundary["end_seconds"])
+        if not math.isfinite(start_seconds) or not math.isfinite(end_seconds) or end_seconds <= start_seconds:
+            return None
+        mapped.append({
+            "start_seconds": start_seconds,
+            "end_seconds": end_seconds,
+            "text": narration[start_index:end_index],
+        })
+        cursor = next_cursor
+    return mapped if cursor == len(source_positions) and mapped else None
+
+
+def build_aligned_srt(storyboard, boundaries_by_scene, max_chars=16, max_duration=2.4):
+    """Build compact word-boundary captions, falling back per scene when text cannot be aligned exactly."""
+    entries = []
+    report = {}
+    offset = 0.0
+
+    def add_entry(start, end, text):
+        if not text:
+            return
+        start = max(0.0, start)
+        end = max(start + 0.08, end)
+        entries.append({
+            "start": start,
+            "end": end,
+            "text": text,
+        })
+
+    for scene in storyboard["scenes"]:
+        scene_id = scene["id"]
+        narration = scene["narration"]
+        duration = renderer.frame_count(scene) / renderer.FPS
+        raw_boundaries = sorted(
+            boundaries_by_scene.get(scene_id, []),
+            key=lambda item: float(item.get("start_seconds", 0)),
+        )
+        mapped = map_boundaries_to_source(narration, raw_boundaries)
+        if mapped:
+            groups = []
+            current = None
+            for boundary in mapped:
+                start = min(duration, max(0.0, boundary["start_seconds"]))
+                end = min(duration, max(start + 0.08, boundary["end_seconds"]))
+                if start >= duration or end <= start:
+                    continue
+                text = boundary["text"]
+                if current and (
+                    len(current["text"] + text) > max_chars
+                    or end - current["start"] > max_duration
+                ):
+                    groups.append(current)
+                    current = None
+                if current is None:
+                    current = {"start": start, "end": end, "text": text}
+                else:
+                    current["end"] = max(current["end"], end)
+                    current["text"] += text
+                if current["text"].rstrip().endswith(("。", "！", "？", "；", "：")):
+                    groups.append(current)
+                    current = None
+            if current:
+                groups.append(current)
+            for group in groups:
+                add_entry(offset + group["start"], offset + group["end"], group["text"])
+            alignment = "word_boundary"
+        else:
+            # Keep every source character even when the provider's metadata does
+            # not exactly match the narration; do not fabricate word timestamps.
+            chunk_size = 18
+            for index in range(0, len(narration), chunk_size):
+                text = narration[index:index + chunk_size]
+                start = offset + duration * index / len(narration)
+                end = offset + duration * min(index + chunk_size, len(narration)) / len(narration)
+                add_entry(start, end, text)
+            alignment = "scene_proportional_fallback"
+
+        report[scene_id] = {
+            "alignment": alignment,
+            "word_boundaries": len(raw_boundaries),
+            "source_text_matched": alignment == "word_boundary",
+        }
+        offset += duration
+
+    srt = "\\n\\n".join(
+        f"{index}\\n{renderer.stamp(entry['start'])} --> {renderer.stamp(entry['end'])}\\n{entry['text']}\\n"
+        for index, entry in enumerate(entries, 1)
+    )
+    return srt, report
 
 def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None, margin_seconds=0.25):
     source = Path(source).resolve()
