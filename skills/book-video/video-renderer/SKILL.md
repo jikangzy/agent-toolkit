@@ -63,12 +63,12 @@ The default `--tts-provider none` is offline and produces no audio track. Once t
 
 ```bash
 python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
-python tools/book-video-renderer/pipeline.py \\
-  examples/book-video/naval-test-001/storyboard.json \\
-  --output output/<run-id> \\
-  --assets-dir output/<run-id>/images \\
-  --tts-provider edge-tts \\
-  --tts-voice zh-CN-YunxiNeural \\
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/<run-id> \
+  --assets-dir output/<run-id>/images \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural \
   --music-file output/<run-id>/music.mp3
 ```
 
