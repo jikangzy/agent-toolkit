@@ -220,9 +220,9 @@ class UnitTests(unittest.TestCase):
         calls = []
 
         class FakeCommunicate:
-            def __init__(self, text, voice, rate):
+            def __init__(self, text, voice, rate, boundary):
                 self.text = text
-                calls.append({"text": text, "voice": voice, "rate": rate})
+                calls.append({"text": text, "voice": voice, "rate": rate, "boundary": boundary})
 
             async def stream(self):
                 yield {"type": "audio", "data": b"fake-mp3"}
@@ -254,6 +254,7 @@ class UnitTests(unittest.TestCase):
 
         self.assertEqual(rate, "+0%")
         self.assertEqual(len(calls), len(data["scenes"]))
+        self.assertTrue(all(call["boundary"] == "WordBoundary" for call in calls))
         self.assertEqual(durations["scene_001"], 1.25)
         self.assertAlmostEqual(boundaries["scene_001"][0]["start_seconds"], 0.2)
         self.assertAlmostEqual(boundaries["scene_001"][0]["end_seconds"], 0.6)
