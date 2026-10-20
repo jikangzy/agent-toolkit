@@ -152,13 +152,29 @@ class RecordedSpeech:
     fallback = None
     speech_status = 'provided_audio'
 
-    def __init__(self, directory, scenes):
+    def __init__(self, directory, scenes, provider_name=None, voice_id=None):
         self.directory = Path(directory).resolve()
         self.files = {s['id']: self.directory / (s['id'] + '.wav') for s in scenes}
         missing = [str(p) for p in self.files.values() if not p.is_file()]
         if missing:
             raise RenderError('Missing real narration WAV files: ' + ', '.join(missing))
-        self.cache_key = fingerprint({k: digest(p) for k, p in self.files.items()})
+        self.provider_name = provider_name or 'RecordedSpeech'
+        self.voice_id = voice_id
+        self.speech_status = 'generated_audio' if provider_name else 'provided_audio'
+        if provider_name and provider_name.lower() in ('edge-tts', 'edgetts'):
+            self.provider_notice = (
+                'Narration was pre-synthesized through the external Edge TTS service; '
+                'internet access was required and narration text was sent to that service.'
+            )
+        elif provider_name:
+            self.provider_notice = f'Narration WAV files were pre-synthesized by provider: {provider_name}.'
+        else:
+            self.provider_notice = None
+        self.cache_key = fingerprint({
+            'provider': self.provider_name,
+            'voice_id': self.voice_id,
+            'files': {k: digest(p) for k, p in self.files.items()},
+        })
 
     def synthesize(self, scene_id, narration, voice, duration, workdir):
         path = self.files[scene_id]
@@ -402,7 +418,7 @@ def encode_scene(scene, data, font, work, provider, visual_asset=None):
     return clip, audio is not None
 
 
-def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None):
+def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None, speech_provider_name=None, speech_voice=None):
     if attempts < 1 or attempts > 10:
         raise RenderError('attempts must be between 1 and 10')
     source, output = Path(source).resolve(), Path(output).resolve()
@@ -432,14 +448,21 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 raise RenderError('Use either --tts-audio-dir or --tts-provider edge-tts, not both')
             if tts_voice and tts_provider != 'edge-tts':
                 raise RenderError('--tts-voice can only be used with --tts-provider edge-tts')
+            if (speech_provider_name or speech_voice) and not speech_dir:
+                raise RenderError('--tts-audio-provider/--tts-audio-voice require --tts-audio-dir')
+            if speech_voice and not speech_provider_name:
+                raise RenderError('--tts-audio-voice requires --tts-audio-provider')
             if speech_dir:
-                provider = RecordedSpeech(speech_dir, data['scenes'])
+                provider = RecordedSpeech(
+                    speech_dir, data['scenes'],
+                    provider_name=speech_provider_name, voice_id=speech_voice
+                )
             elif tts_provider == 'edge-tts':
                 provider = EdgeTTS(tts_voice)
             else:
                 provider = NoTTS()
         manifest.update(storyboard_sha256=source_hash, scene_order=[s['id'] for s in data['scenes']],
-                        font=str(font_path), tts_provider=type(provider).__name__,
+                        font=str(font_path), tts_provider=getattr(provider, 'provider_name', type(provider).__name__),
                         tts_voice=getattr(provider, 'voice_id', None),
                         speech_status=getattr(provider, 'speech_status', 'provided_audio'),
                         visual_assets_supplied=assets_dir is not None)
@@ -569,13 +592,16 @@ def main():
     parser.add_argument('--assets-dir', type=Path, help='Optional directory of generated images named <scene_id>.png/.jpg/.jpeg/.webp')
     parser.add_argument('--attempts', type=int, default=3)
     parser.add_argument('--tts-audio-dir', type=Path, help='Real narration WAV files named scene_001.wav, etc.')
+    parser.add_argument('--tts-audio-provider', help='Provider label for pre-synthesized WAVs, e.g. edge-tts')
+    parser.add_argument('--tts-audio-voice', help='Voice ID used to pre-synthesize the WAVs')
     parser.add_argument('--tts-provider', choices=['none', 'edge-tts'], default='none', help='Optional speech synthesis provider; default none keeps rendering offline')
     parser.add_argument('--tts-voice', help='Edge TTS voice ID, e.g. zh-CN-YunxiNeural')
     args = parser.parse_args()
     try:
         result = render(args.storyboard, args.output, args.font, args.attempts,
                         speech_dir=args.tts_audio_dir, tts_provider=args.tts_provider,
-                        tts_voice=args.tts_voice, assets_dir=args.assets_dir)
+                        tts_voice=args.tts_voice, assets_dir=args.assets_dir,
+                        speech_provider_name=args.tts_audio_provider, speech_voice=args.tts_audio_voice)
         print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f'Render failed: {exc}', file=sys.stderr)

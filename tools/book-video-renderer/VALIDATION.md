@@ -4,15 +4,14 @@ Validation date: 2026-10-20 (Asia/Shanghai).
 
 ## Automated CI
 
-GitHub Actions run: https://github.com/jikangzy/agent-toolkit/actions/runs/39343331034
-
-- Python 3.12 on Ubuntu; FFmpeg/ffprobe, libx264, libass and Noto CJK fonts installed by the workflow.
-- The regular renderer suite passed after the Edge TTS MP3-padding adjustment.
-- The initial live-TTS attempts exposed two real issues and were fixed on the experiment branch: the production storyboard schema intentionally requires at least 15 seconds, and MP3 encoder padding could trigger a false scene-overrun error.
-- The successful cloud sample used a temporary schema copy with an 8-second minimum for the derived one-scene sample only. The committed production schema and original storyboard were not changed.
-- The successful run produced an artifact containing `final.mp4`, `manifest.json`, and `subtitles.srt`. The artifact is stored in GitHub Actions for 7 days and is not committed to Git.
+- The image-assets feature passed the full Python/FFmpeg integration suite: https://github.com/jikangzy/agent-toolkit/actions/runs/39344047019 (26 tests).
+- The Edge TTS MP3-padding fix passed the full suite: https://github.com/jikangzy/agent-toolkit/actions/runs/39343543818.
+- GitHub Actions uses Python 3.12 on Ubuntu with FFmpeg/ffprobe, libx264, libass and Noto CJK fonts.
+- The current PR adds unit coverage for pure narration-duration allocation and pre-synthesized provider metadata. Live Edge TTS is intentionally not run by ordinary PR CI.
 
 ## Successful 8-second live TTS sample
+
+Run: https://github.com/jikangzy/agent-toolkit/actions/runs/39343331034
 
 - Source: `examples/book-video/naval-test-001/storyboard.json`; only `scene_001` was used. Its narration was preserved verbatim.
 - Status: `complete`; speech status: `generated_audio`.
@@ -20,13 +19,25 @@ GitHub Actions run: https://github.com/jikangzy/agent-toolkit/actions/runs/39343
 - Output: 1080×1920, 30 fps, H.264/yuv420p, AAC audio, 8.033333 seconds.
 - Final MP4 size: approximately 3.08 MB.
 - FFprobe validation and full decode passed; an extracted frame confirmed that Chinese title/subtitle glyphs render.
-- Current visual is still a program-generated placeholder. No generated AI image, AI video, word-level subtitle alignment, or background music was included.
-- Edge TTS requires internet and sends the scene narration text to the external service.
+- The visual is still a program-generated placeholder. No generated AI image, AI video, word-level subtitle alignment, or background music was included.
 
-## Current limitations
+## Successful full narration render
 
-- The CLI now accepts externally generated still images through `--assets-dir`; it does not call an image-generation API itself. Each asset is named `<scene_id>.png`, `.jpg`, `.jpeg`, or `.webp`. Assets are center-cropped to 1080×1920, storyboard `onscreen_text` is overlaid locally, and asset hashes participate in per-scene cache keys.
+Run: https://github.com/jikangzy/agent-toolkit/actions/runs/39345043963
+
+- All 10 original scenes were synthesized through Edge TTS and assembled into a single 117.833333-second video (about 1:58).
+- Output: 1080×1920, 30 fps, H.264/yuv420p, AAC audio; full FFmpeg decode passed.
+- Scene durations in a temporary derived storyboard were extended only where measured WAV duration plus a 250 ms safety margin required it. The original storyboard and narration were not modified.
+- The longest measured speech was scene_005 at 14.472 seconds; scene_002 needed 12.400 seconds instead of its original 10 seconds.
+- The workflow artifact includes `final.mp4`, `manifest.json`, `subtitles.srt`, and `timing-report.json`; it expires after 7 days and is not committed to Git.
+- The video still uses placeholder visuals. Background music and word-level subtitle alignment are not included.
+- Edge TTS requires internet and sends narration text to the external service.
+
+## Current capabilities and limitations
+
+- The CLI accepts externally generated still images through `--assets-dir`; it does not call an image-generation API itself. Each asset is named `<scene_id>.png`, `.jpg`, `.jpeg`, or `.webp`. Assets are center-cropped to 1080×1920, storyboard `onscreen_text` is overlaid locally, and asset hashes participate in per-scene cache keys.
 - Missing images fall back to labeled placeholders and are recorded in the manifest. AI video generation is not implemented.
+- The new `prepare_narration.py` utility pre-synthesizes each scene, measures WAV durations, and writes a derived storyboard with safe scene timings; it never rewrites the source storyboard. Pure duration allocation is unit-tested; live TTS is kept out of normal CI.
 - Background music and cinematic transitions are not implemented; transitions currently use cuts.
 - Subtitles are scene-proportionally timed rather than word-level aligned to the generated voice.
-- Generated media, audio, image assets, fonts and caches belong under ignored local `output/` directories or short-lived CI artifacts, never in Git.
+- Generated media, audio, image assets, fonts and caches belong under ignored local `output/` / `.local/runs/` directories or short-lived CI artifacts, never in Git.

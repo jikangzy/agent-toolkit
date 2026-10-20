@@ -40,6 +40,7 @@ jobs:
       - name: Compile Python files
         run: |
           python -m py_compile tools/book-video-renderer/renderer.py
+          python -m py_compile tools/book-video-renderer/prepare_narration.py
           python -m py_compile tools/book-video-renderer/tests/test_renderer.py
       - name: Run unit and FFmpeg integration tests
         shell: bash

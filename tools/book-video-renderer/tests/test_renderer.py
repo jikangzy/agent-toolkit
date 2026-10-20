@@ -14,6 +14,10 @@ MODULE = Path(__file__).resolve().parents[1] / 'renderer.py'
 spec = importlib.util.spec_from_file_location('renderer', MODULE)
 r = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(r)
+PREPARE_MODULE = MODULE.parent / 'prepare_narration.py'
+prepare_spec = importlib.util.spec_from_file_location('prepare_narration', PREPARE_MODULE)
+prepare_narration = importlib.util.module_from_spec(prepare_spec)
+prepare_spec.loader.exec_module(prepare_narration)
 EXAMPLE = r.ROOT/'examples/book-video/naval-test-001/storyboard.json'
 FONT = os.environ.get('BOOK_VIDEO_FONT')
 
@@ -132,6 +136,44 @@ class UnitTests(unittest.TestCase):
         r.Image.new('RGB', (10, 10), (0, 0, 0)).save(assets/'scene_001.jpg')
         with self.assertRaisesRegex(r.RenderError, 'multiple visual assets'):
             r.find_visual_asset(assets, 'scene_001')
+
+    def test_preflight_timing_extends_only_overlong_scenes_without_mutating_source(self):
+        data = fixture()
+        original = copy.deepcopy(data)
+        durations = {scene['id']: 2.7 for scene in data['scenes']}
+        durations['scene_002'] = 4.12
+
+        derived, report = prepare_narration.allocate_scene_durations(data, durations, 0.25)
+
+        self.assertEqual(data, original)
+        self.assertEqual(
+            [scene['narration'] for scene in derived['scenes']],
+            [scene['narration'] for scene in original['scenes']]
+        )
+        self.assertEqual(
+            [scene['id'] for scene in derived['scenes']],
+            [scene['id'] for scene in original['scenes']]
+        )
+        self.assertEqual(derived['scenes'][0]['duration_seconds'], 3)
+        self.assertEqual(derived['scenes'][1]['duration_seconds'], 4.4)
+        self.assertEqual(
+            derived['format']['target_duration_seconds'],
+            sum(scene['duration_seconds'] for scene in derived['scenes'])
+        )
+        self.assertEqual(report['scene_002']['speech_seconds'], 4.12)
+        self.assertEqual(report['scene_002']['allocated_scene_seconds'], 4.4)
+
+    def test_recorded_speech_metadata_labels_pre_synthesized_provider(self):
+        scenes = fixture()['scenes']
+        for scene in scenes:
+            (self.root/(scene['id']+'.wav')).write_bytes(b'fixture audio')
+        provider = r.RecordedSpeech(
+            self.root, scenes, provider_name='edge-tts', voice_id='zh-CN-YunxiNeural'
+        )
+        self.assertEqual(provider.provider_name, 'edge-tts')
+        self.assertEqual(provider.voice_id, 'zh-CN-YunxiNeural')
+        self.assertEqual(provider.speech_status, 'generated_audio')
+        self.assertIn('external Edge TTS service', provider.provider_notice)
 
     def test_no_tts_is_explicit(self):
         provider = r.NoTTS()
