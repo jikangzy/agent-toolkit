@@ -42,6 +42,8 @@ jobs:
           python -m py_compile tools/book-video-renderer/renderer.py
           python -m py_compile tools/book-video-renderer/prepare_narration.py
           python -m py_compile tools/book-video-renderer/tests/test_renderer.py
+          python -m py_compile tools/book-video-renderer/pipeline.py
+          python -m py_compile tools/book-video-renderer/tests/test_pipeline.py
       - name: Run unit and FFmpeg integration tests
         shell: bash
         run: |
