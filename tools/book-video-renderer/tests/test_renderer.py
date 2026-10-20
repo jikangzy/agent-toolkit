@@ -273,24 +273,69 @@ class UnitTests(unittest.TestCase):
                 return "+0%"
 
         data = fixture()
+        audio_dir = self.root/"audio"
+
+        def fake_convert(args):
+            Path(args[-1]).write_bytes(b"fake-wav")
+
         with patch.object(prepare_narration.renderer, "EdgeTTS", return_value=FakeProvider()), patch.object(
-            prepare_narration.renderer, "command"
+            prepare_narration.renderer, "command", side_effect=fake_convert
         ), patch.object(
             prepare_narration.renderer, "probe",
             return_value={"streams": [{"codec_type": "audio"}], "format": {"duration": "1.25"}},
         ):
+            first_cache = {}
             durations, rate, boundaries = asyncio.run(
-                prepare_narration.synthesize_audio(data, self.root/"audio", "zh-CN-YunxiNeural")
+                prepare_narration.synthesize_audio(
+                    data, audio_dir, "zh-CN-YunxiNeural", cache_status=first_cache
+                )
             )
+            self.assertTrue(all(value == "miss" for value in first_cache.values()))
+
+            cached_status = {}
+            cached_durations, cached_rate, cached_boundaries = asyncio.run(
+                prepare_narration.synthesize_audio(
+                    data, audio_dir, "zh-CN-YunxiNeural", cache_status=cached_status
+                )
+            )
+            self.assertTrue(all(value == "hit" for value in cached_status.values()))
+            self.assertEqual(cached_durations, durations)
+            self.assertEqual(cached_rate, rate)
+            self.assertEqual(cached_boundaries, boundaries)
+            self.assertEqual(len(calls), len(data["scenes"]))
+
+            # Changing one scene's narration invalidates only that scene's audio.
+            data["scenes"][0]["narration"] += "缓存失效"
+            changed_status = {}
+            asyncio.run(
+                prepare_narration.synthesize_audio(
+                    data, audio_dir, "zh-CN-YunxiNeural", cache_status=changed_status
+                )
+            )
+            self.assertEqual(changed_status["scene_001"], "miss")
+            self.assertTrue(all(
+                changed_status[scene["id"]] == "hit" for scene in data["scenes"][1:]
+            ))
+            self.assertEqual(len(calls), len(data["scenes"]) + 1)
+
+            forced_status = {}
+            asyncio.run(
+                prepare_narration.synthesize_audio(
+                    data, audio_dir, "zh-CN-YunxiNeural", force=True,
+                    cache_status=forced_status
+                )
+            )
+            self.assertTrue(all(value == "forced" for value in forced_status.values()))
+            self.assertEqual(len(calls), 2 * len(data["scenes"]) + 1)
 
         self.assertEqual(rate, "+0%")
-        self.assertEqual(len(calls), len(data["scenes"]))
         self.assertTrue(all(call["boundary"] == "WordBoundary" for call in calls))
         self.assertEqual(durations["scene_001"], 1.25)
         self.assertAlmostEqual(boundaries["scene_001"][0]["start_seconds"], 0.2)
         self.assertAlmostEqual(boundaries["scene_001"][0]["end_seconds"], 0.6)
-        self.assertEqual(boundaries["scene_001"][0]["text"], data["scenes"][0]["narration"])
-        self.assertTrue((self.root/"audio/scene_001.mp3").is_file())
+        self.assertEqual(boundaries["scene_001"][0]["text"], fixture()["scenes"][0]["narration"])
+        self.assertTrue((audio_dir/"scene_001.mp3").is_file())
+        self.assertTrue((audio_dir/"scene_001.cache.json").is_file())
 
     def test_preflight_timing_extends_only_overlong_scenes_without_mutating_source(self):
         data = fixture()
