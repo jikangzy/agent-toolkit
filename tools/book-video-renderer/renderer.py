@@ -7,6 +7,7 @@ import asyncio
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -20,7 +21,7 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = ROOT / 'schemas/book-video/storyboard.schema.json'
-VERSION = 'mvp-2'
+VERSION = 'mvp-3'
 WIDTH, HEIGHT, FPS = 1080, 1920, 30
 
 
@@ -124,6 +125,39 @@ def subtitles(data):
             entries.append(f'{len(entries)+1}\n{stamp(start)} --> {stamp(end)}\n{text}\n')
         offset += duration
     return '\n'.join(entries)
+
+
+def _srt_seconds(value):
+    match = re.fullmatch(r'(\d{2}):(\d{2}):(\d{2}),(\d{3})', value)
+    if not match:
+        raise RenderError(f'Invalid SRT timestamp: {value}')
+    hours, minutes, seconds, milliseconds = map(int, match.groups())
+    return hours * 3600 + minutes * 60 + seconds + milliseconds / 1000
+
+
+def validate_subtitle_file(path, duration):
+    """Validate an externally generated SRT before burning it into the video."""
+    path = Path(path).expanduser().resolve()
+    if not path.is_file():
+        raise RenderError(f'Subtitle file does not exist: {path}')
+    content = path.read_text(encoding='utf-8-sig')
+    pattern = re.compile(
+        r'(?m)^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})\s*$'
+    )
+    matches = list(pattern.finditer(content))
+    if not matches:
+        raise RenderError('Subtitle file has no valid SRT timing entries')
+    previous_start = -1.0
+    for match in matches:
+        start, end = _srt_seconds(match.group(1)), _srt_seconds(match.group(2))
+        if end <= start:
+            raise RenderError('Subtitle cue end must be after its start')
+        if start < previous_start:
+            raise RenderError('Subtitle cues must be ordered by start time')
+        if end > duration + 0.15:
+            raise RenderError('Subtitle cue extends beyond the final video duration')
+        previous_start = start
+    return {'path': path, 'sha256': digest(path), 'cue_count': len(matches)}
 
 
 def resolve_music(data, music_file=None, volume_override=None):
@@ -443,7 +477,7 @@ def encode_scene(scene, data, font, work, provider, visual_asset=None):
     return clip, audio is not None
 
 
-def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None, speech_provider_name=None, speech_voice=None, music_file=None, music_volume_db=None):
+def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None, speech_provider_name=None, speech_voice=None, music_file=None, music_volume_db=None, subtitle_file=None):
     if attempts < 1 or attempts > 10:
         raise RenderError('attempts must be between 1 and 10')
     source, output = Path(source).resolve(), Path(output).resolve()
@@ -459,6 +493,9 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         music_path, music_volume_db = resolve_music(data, music_file, music_volume_db)
         music_enabled = data.get('music', {}).get('enabled', True)
         assets_dir = Path(assets_dir).resolve() if assets_dir is not None else None
+        subtitle_path = Path(subtitle_file).expanduser().resolve() if subtitle_file is not None else None
+        target_duration = sum(frame_count(scene) / FPS for scene in data['scenes'])
+        subtitle_info = validate_subtitle_file(subtitle_path, target_duration) if subtitle_path else None
         if assets_dir is not None and not assets_dir.is_dir():
             raise RenderError(f'Visual assets directory does not exist: {assets_dir}')
         visual_assets = {
@@ -507,10 +544,17 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 'Program-generated placeholder visuals used for scenes without supplied assets: '
                 + ', '.join(missing_assets)
             )
-        manifest['fallbacks'].extend([
-            'Subtitles use scene-proportional timing, not speech alignment.',
-            'Transitions use cuts; requested transitions are recorded per scene.'
-        ])
+        if subtitle_info:
+            manifest['subtitle_alignment'] = {
+                'status': 'supplied_srt',
+                'file': subtitle_path.name,
+                'sha256': subtitle_info['sha256'],
+                'cue_count': subtitle_info['cue_count'],
+            }
+        else:
+            manifest['subtitle_alignment'] = {'status': 'scene_proportional'}
+            manifest['fallbacks'].append('Subtitles use scene-proportional timing, not speech alignment.')
+        manifest['fallbacks'].append('Transitions use cuts; requested transitions are recorded per scene.')
         if provider.fallback:
             manifest['fallbacks'].append(provider.fallback)
         if getattr(provider, 'provider_notice', None):
@@ -528,7 +572,12 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             manifest['fallbacks'].append('Requested background music omitted; pass --music-file to mix a local audio track.')
         else:
             manifest['music'] = {'status': 'disabled'}
-        (output/'subtitles.srt').write_text(subtitles(data), encoding='utf-8')
+        if subtitle_path is not None:
+            destination_srt = (output/'subtitles.srt').resolve()
+            if subtitle_path != destination_srt:
+                shutil.copy2(subtitle_path, destination_srt)
+        else:
+            (output/'subtitles.srt').write_text(subtitles(data), encoding='utf-8')
         scenes_dir, cache = output/'scenes', output/'cache'
         scenes_dir.mkdir(exist_ok=True)
         cache.mkdir(exist_ok=True)
@@ -658,14 +707,16 @@ def main():
     parser.add_argument('--tts-voice', help='Edge TTS voice ID, e.g. zh-CN-YunxiNeural')
     parser.add_argument('--music-file', type=Path, help='Optional local background music file; storyboard music.enabled must be true')
     parser.add_argument('--music-volume-db', type=float, help='Override storyboard music.volume_db (allowed range: -60 to 0 dB)')
+    parser.add_argument('--subtitle-file', type=Path, help='Optional pre-aligned SRT; validated and burned instead of scene-proportional captions')
     args = parser.parse_args()
     try:
         result = render(args.storyboard, args.output, args.font, args.attempts,
                         speech_dir=args.tts_audio_dir, tts_provider=args.tts_provider,
                         tts_voice=args.tts_voice, assets_dir=args.assets_dir,
                         speech_provider_name=args.tts_audio_provider, speech_voice=args.tts_audio_voice,
-                        music_file=args.music_file, music_volume_db=args.music_volume_db)
-        print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'music': result.get('music'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
+                        music_file=args.music_file, music_volume_db=args.music_volume_db,
+                        subtitle_file=args.subtitle_file)
+        print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'music': result.get('music'), 'subtitle_alignment': result.get('subtitle_alignment'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f'Render failed: {exc}', file=sys.stderr)
         return 1

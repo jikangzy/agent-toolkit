@@ -39,7 +39,7 @@ final.mp4
 - `schemas/book-video/storyboard.schema.json`: contract between the two stages.
 - `examples/book-video/storyboard.example.json`: sample payload for testing.
 
-**Current MVP limitations:** image generation happens in the agent workflow, not inside the CLI; missing images become clearly labeled placeholders. Edge TTS is optional and online (narration text is sent to the external service); the default renderer has no narration. Local background music can now be mixed with narration using `--music-file`, but music generation is not implemented. AI video generation and word-level subtitle alignment are not implemented yet. See [Book Video Renderer documentation](tools/book-video-renderer/README.md) for commands and validation details.
+**Current MVP limitations:** image generation happens in the agent workflow, not inside the CLI; missing images become clearly labeled placeholders. Edge TTS is optional and online (narration text is sent to the external service); the default renderer has no narration. Local background music can be mixed using `--music-file`, but music generation is not implemented. The TTS preflight can create word-boundary-timed subtitles when the provider metadata exactly matches the original narration, with a safe scene-timing fallback otherwise. AI video generation and guaranteed word-level subtitle alignment across all providers are not implemented. See [Book Video Renderer documentation](tools/book-video-renderer/README.md) for commands and validation details.
 
 ## Install WorkBuddy skills
 
