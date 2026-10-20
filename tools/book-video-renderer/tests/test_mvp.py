@@ -1,11 +1,16 @@
 """Offline contract and failure-recovery regression tests."""
 import copy
 import json
+import math
+import struct
+import subprocess
+import wave
 from pathlib import Path
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from book_video_renderer.models import ROOT, FPS, RenderError, total_duration
@@ -88,6 +93,91 @@ class MVPTests(unittest.TestCase):
         self.assertTrue((output/'subtitles.srt').is_file())
         self.assertFalse((output/'final.mp4').exists())
         self.assertEqual(len(list((output/'scenes').glob('*.mp4'))), 5)
+        self.assertEqual(source.read_bytes(), original)
+
+
+    @unittest.skipUnless(FONT, 'Set BOOK_VIDEO_FONT for real FFmpeg integration')
+    def test_supplied_images_audio_music_and_subtitles_render_offline_and_cache(self):
+        data = fixture()
+        source = self.source(data)
+        original = source.read_bytes()
+        output = self.root/'output'
+        assets = self.root/'assets'
+        audio = self.root/'audio'
+        assets.mkdir()
+        audio.mkdir()
+        sample_rate = 16000
+
+        def write_tone(path, duration, frequency):
+            frames = bytearray()
+            for index in range(int(sample_rate * duration)):
+                value = int(1800 * math.sin(2 * math.pi * frequency * index / sample_rate))
+                frames.extend(struct.pack('<h', value))
+            with wave.open(str(path), 'wb') as stream:
+                stream.setnchannels(1)
+                stream.setsampwidth(2)
+                stream.setframerate(sample_rate)
+                stream.writeframes(frames)
+
+        def srt_timestamp(seconds):
+            milliseconds = round(seconds * 1000)
+            hours, milliseconds = divmod(milliseconds, 3_600_000)
+            minutes, milliseconds = divmod(milliseconds, 60_000)
+            whole_seconds, milliseconds = divmod(milliseconds, 1000)
+            return f'{hours:02}:{minutes:02}:{whole_seconds:02},{milliseconds:03}'
+
+        cues = []
+        for index, scene in enumerate(data['scenes']):
+            Image.new('RGB', (320, 568), (25 + index * 20, 45, 80)).save(
+                assets/(scene['id'] + '.png')
+            )
+            # Synthetic local audio fixtures exercise the supplied-audio path;
+            # they are test tones, not claimed to be human speech or TTS output.
+            write_tone(audio/(scene['id'] + '.wav'), 2.5, 220 + index * 35)
+            start, end = index * 3, (index + 1) * 3
+            cues.append(
+                f'{index + 1}\\n{srt_timestamp(start)} --> {srt_timestamp(end)}\\n'
+                f'{scene["narration"]}'
+            )
+
+        music = self.root/'music.wav'
+        write_tone(music, 1.0, 110)
+        subtitle_file = self.root/'aligned.srt'
+        subtitle_file.write_text('\\n\\n'.join(cues) + '\\n', encoding='utf-8')
+
+        result = render(
+            source, output, FONT, attempts=1,
+            speech_dir=audio, assets_dir=assets,
+            music_file=music, subtitle_file=subtitle_file,
+        )
+
+        self.assertEqual(result['overall_status'], 'completed')
+        self.assertEqual(result['speech_status'], 'provided_audio')
+        self.assertEqual(result['music']['status'], 'supplied')
+        self.assertEqual(result['subtitle_alignment']['status'], 'supplied_srt')
+        self.assertEqual(result['subtitle_alignment']['cue_count'], len(data['scenes']))
+        self.assertEqual(result['qc']['status'], 'passed')
+        self.assertEqual(result['qc']['scene_count'], len(data['scenes']))
+        self.assertTrue(all(scene['audio'] for scene in result['scenes']))
+        self.assertTrue(all(not scene['placeholder'] for scene in result['scenes']))
+        self.assertFalse(any('Program-generated placeholder visuals' in item for item in result['fallbacks']))
+        self.assertFalse(any('background music omitted' in item for item in result['fallbacks']))
+        self.assertFalse(any('scene-proportional timing' in item for item in result['fallbacks']))
+        self.assertFalse(any('NO audio' in item or 'No Chinese TTS configured' in item for item in result['fallbacks']))
+        self.assertEqual(source.read_bytes(), original)
+        subprocess.run(
+            ['ffmpeg', '-v', 'error', '-i', str(output/'final.mp4'), '-f', 'null', '-'],
+            check=True,
+        )
+
+        # A second identical run must reuse every scene clip without a provider call.
+        cached = render(
+            source, output, FONT, attempts=1,
+            speech_dir=audio, assets_dir=assets,
+            music_file=music, subtitle_file=subtitle_file,
+        )
+        self.assertTrue(all(scene['cache_hit'] for scene in cached['scenes']))
+        self.assertTrue(all(scene['status'] == 'skipped_cached' for scene in cached['scenes']))
         self.assertEqual(source.read_bytes(), original)
 
 
