@@ -8,6 +8,7 @@ import copy
 import hashlib
 import json
 import math
+import unicodedata
 from pathlib import Path
 import sys
 
@@ -121,21 +122,29 @@ async def synthesize_audio(storyboard, audio_dir, voice_id):
 
 
 def map_boundaries_to_source(narration, boundaries):
-    """Map TTS boundary timings back to exact source-text slices, or return None."""
+    """Map provider timings to exact source slices while tolerating omitted punctuation."""
     if not boundaries:
         return None
-    source_positions = [index for index, char in enumerate(narration) if not char.isspace()]
+
+    def is_content(char):
+        # TTS boundary metadata commonly omits punctuation (including Chinese
+        # quotation marks and the middle dot in transliterated names). Compare
+        # only spoken characters, but keep punctuation in the source slices.
+        return not char.isspace() and not unicodedata.category(char).startswith("P")
+
+    source_positions = [index for index, char in enumerate(narration) if is_content(char)]
     source_normalized = "".join(narration[index] for index in source_positions)
+    boundary_texts = [str(boundary.get("text", "")) for boundary in boundaries]
     boundary_normalized = "".join(
-        char for boundary in boundaries for char in str(boundary.get("text", "")) if not char.isspace()
+        char for text in boundary_texts for char in text if is_content(char)
     )
     if not source_positions or boundary_normalized != source_normalized:
         return None
 
     mapped = []
     cursor = 0
-    for boundary in boundaries:
-        count = sum(1 for char in str(boundary.get("text", "")) if not char.isspace())
+    for boundary, text in zip(boundaries, boundary_texts):
+        count = sum(1 for char in text if is_content(char))
         if count == 0:
             continue
         start_index = 0 if cursor == 0 else source_positions[cursor]
@@ -152,6 +161,7 @@ def map_boundaries_to_source(narration, boundaries):
         })
         cursor = next_cursor
     return mapped if cursor == len(source_positions) and mapped else None
+
 
 
 def build_aligned_srt(storyboard, boundaries_by_scene, max_chars=16, max_duration=2.4):
