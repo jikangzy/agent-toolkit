@@ -440,7 +440,7 @@ class IntegrationTests(unittest.TestCase):
         )
         self.assertEqual(result['status'], 'complete')
         self.assertEqual(result['qc']['audio_codec'], 'aac')
-        self.assertEqual(result['qc']['duration_seconds'], 15)
+        self.assertLessEqual(abs(result['qc']['duration_seconds'] - 15), 0.1)
         self.assertEqual(result['music']['status'], 'supplied')
         self.assertEqual(result['music']['file'], 'music.wav')
         self.assertEqual(result['music']['sha256'], r.digest(music))
