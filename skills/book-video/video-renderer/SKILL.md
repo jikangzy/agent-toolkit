@@ -68,6 +68,7 @@ python tools/book-video-renderer/prepare_narration.py \
   --audio-dir output/<run-id>/audio \
   --derived-storyboard .local/runs/<run-id>/storyboard.render.json \
   --timing-report output/<run-id>/timing-report.json \
+  --subtitle-output output/<run-id>/aligned-subtitles.srt \
   --voice zh-CN-YunxiNeural
 
 python tools/book-video-renderer/renderer.py \
@@ -76,10 +77,11 @@ python tools/book-video-renderer/renderer.py \
   --assets-dir output/<run-id>/images \
   --tts-audio-dir output/<run-id>/audio \
   --tts-audio-provider edge-tts \
-  --tts-audio-voice zh-CN-YunxiNeural
+  --tts-audio-voice zh-CN-YunxiNeural \
+  --subtitle-file output/<run-id>/aligned-subtitles.srt
 ```
 
-Before enabling Edge TTS, disclose that narration text is sent to an external service and requires internet access. It is optional and has no availability guarantee. The preflight adjusts only a derived storyboard's scene durations to fit measured speech; the original narration and scene order remain unchanged. If synthesis fails, report the failure rather than claiming success or truncating narration. Generated video/audio/images/cache/font assets belong under ignored `output/` or `.local/runs/` directories or CI artifacts, never in source control. Subtitles currently use scene-proportional timing, not word-level forced alignment.
+Before enabling Edge TTS, disclose that narration text is sent to an external service and requires internet access. It is optional and has no availability guarantee. The preflight adjusts only a derived storyboard's scene durations to fit measured speech; the original narration and scene order remain unchanged. If synthesis fails, report the failure rather than claiming success or truncating narration. Generated video/audio/images/cache/font assets belong under ignored `output/` or `.local/runs/` directories or CI artifacts, never in source control. The preflight emits `aligned-subtitles.srt` from Edge TTS word-boundary metadata where its text exactly matches the source narration; pass it through `--subtitle-file`. Scenes with unusable/mismatched metadata fall back to scene-proportional timing, and the timing report records which method was used.
 
 If a local music asset is available and `music.enabled` is true in the storyboard, pass `--music-file <path>` to the renderer. It reads the default gain from `music.volume_db` (or accepts `--music-volume-db` between -60 and 0 dB), loops/trims the track to final duration, and mixes it below narration. Never claim music was generated if only a supplied file was used. If no track is available, omit the argument and ensure the manifest's music fallback is disclosed.
 
