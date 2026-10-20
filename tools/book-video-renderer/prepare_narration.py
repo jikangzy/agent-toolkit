@@ -49,22 +49,85 @@ def allocate_scene_durations(data, speech_durations, margin_seconds=0.25):
     return derived, report
 
 
-async def synthesize_audio(storyboard, audio_dir, voice_id):
-    """Generate each scene's audio once, collect Edge TTS word boundaries, and measure WAV duration."""
+def narration_cache_key(scene, voice_id, rate, provider):
+    """Fingerprint all stable inputs that affect speech and word-boundary metadata."""
+    payload = {
+        "provider": "edge-tts",
+        "provider_version": getattr(provider.edge_tts, "__version__", "unknown"),
+        "voice_id": voice_id,
+        "rate": rate,
+        "narration": scene["narration"],
+        "boundary": "WordBoundary",
+    }
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def load_cached_narration(mp3_path, wav_path, cache_path, cache_key):
+    """Return verified cached duration and word boundaries, or None on any cache miss."""
+    try:
+        if not all(path.is_file() for path in (mp3_path, wav_path, cache_path)):
+            return None
+        cache = json.loads(cache_path.read_text(encoding="utf-8"))
+        if cache.get("cache_key") != cache_key:
+            return None
+        if cache.get("mp3_sha256") != renderer.digest(mp3_path):
+            return None
+        if cache.get("wav_sha256") != renderer.digest(wav_path):
+            return None
+        metadata = renderer.probe(wav_path)
+        if not any(stream.get("codec_type") == "audio" for stream in metadata.get("streams", [])):
+            return None
+        duration = float(metadata["format"]["duration"])
+        if not math.isfinite(duration) or duration <= 0:
+            return None
+        if abs(duration - float(cache.get("duration_seconds", 0))) > 0.01:
+            return None
+        boundaries = cache.get("boundaries")
+        if not isinstance(boundaries, list):
+            return None
+        return duration, boundaries
+    except (ValueError, TypeError, KeyError, OSError, renderer.RenderError):
+        # A damaged or stale cache is recoverable: synthesize that scene again.
+        return None
+
+
+async def synthesize_audio(storyboard, audio_dir, voice_id, force=False, cache_status=None):
+    """Generate or reuse per-scene Edge TTS audio and its word-boundary metadata."""
     provider = renderer.EdgeTTS(voice_id)
     audio_dir.mkdir(parents=True, exist_ok=True)
     rate = provider.rate_for(storyboard["voice"])
     durations = {}
     boundaries_by_scene = {}
+    cache_status = cache_status if cache_status is not None else {}
 
     for scene in storyboard["scenes"]:
         scene_id = scene["id"]
         mp3_path = audio_dir / f"{scene_id}.mp3"
         wav_path = audio_dir / f"{scene_id}.wav"
-        if mp3_path.exists():
-            mp3_path.unlink()
-        if wav_path.exists():
-            wav_path.unlink()
+        cache_path = audio_dir / f"{scene_id}.cache.json"
+        cache_key = narration_cache_key(scene, voice_id, rate, provider)
+
+        cached = None if force else load_cached_narration(
+            mp3_path, wav_path, cache_path, cache_key
+        )
+        if cached is not None:
+            duration, scene_boundaries = cached
+            durations[scene_id] = duration
+            boundaries_by_scene[scene_id] = scene_boundaries
+            cache_status[scene_id] = "hit"
+            print(
+                f"{scene_id}: reused cached narration {duration:.3f}s; "
+                f"word boundaries={len(scene_boundaries)}"
+            )
+            continue
+
+        cache_status[scene_id] = "forced" if force else "miss"
+        for path in (mp3_path, wav_path, cache_path):
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
 
         scene_boundaries = []
         try:
@@ -108,15 +171,29 @@ async def synthesize_audio(storyboard, audio_dir, voice_id):
             "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
             "-i", mp3_path, "-vn", "-ar", "48000", "-ac", "2", "-c:a", "pcm_s16le", wav_path,
         ])
+        if not wav_path.is_file() or wav_path.stat().st_size == 0:
+            raise renderer.RenderError(f"{scene_id}: Edge TTS WAV conversion produced no audio file")
         metadata = renderer.probe(wav_path)
         if not any(stream["codec_type"] == "audio" for stream in metadata["streams"]):
             raise renderer.RenderError(f"{scene_id}: converted WAV contains no audio stream")
         duration = float(metadata["format"]["duration"])
-        if duration <= 0:
+        if not math.isfinite(duration) or duration <= 0:
             raise renderer.RenderError(f"{scene_id}: converted WAV has invalid duration")
+
+        cache = {
+            "cache_key": cache_key,
+            "mp3_sha256": renderer.digest(mp3_path),
+            "wav_sha256": renderer.digest(wav_path),
+            "duration_seconds": duration,
+            "boundaries": scene_boundaries,
+        }
+        cache_temp = cache_path.with_name(cache_path.name + ".tmp")
+        cache_temp.write_text(json.dumps(cache, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        cache_temp.replace(cache_path)
+
         durations[scene_id] = duration
         boundaries_by_scene[scene_id] = scene_boundaries
-        print(f"{scene_id}: measured narration {duration:.3f}s; word boundaries={len(scene_boundaries)}")
+        print(f"{scene_id}: synthesized narration {duration:.3f}s; word boundaries={len(scene_boundaries)}")
 
     return durations, rate, boundaries_by_scene
 
@@ -242,7 +319,7 @@ def build_aligned_srt(storyboard, boundaries_by_scene, max_chars=16, max_duratio
     )
     return srt, report
 
-def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None, margin_seconds=0.25, subtitle_output=None):
+def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None, margin_seconds=0.25, subtitle_output=None, force=False):
     source = Path(source).resolve()
     audio_dir = Path(audio_dir).resolve()
     derived_storyboard = Path(derived_storyboard).resolve()
@@ -262,7 +339,7 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
     original_narration = [scene["narration"] for scene in data["scenes"]]
     voice_id = voice_id or "zh-CN-YunxiNeural"
 
-    durations, rate, boundaries_by_scene = asyncio.run(synthesize_audio(data, audio_dir, voice_id))
+    audio_cache = {}\n    durations, rate, boundaries_by_scene = asyncio.run(\n        synthesize_audio(data, audio_dir, voice_id, force=force, cache_status=audio_cache)\n    )
     derived, scenes_report = allocate_scene_durations(data, durations, margin_seconds)
     aligned_srt, subtitle_report = build_aligned_srt(derived, boundaries_by_scene)
     if [scene["id"] for scene in derived["scenes"]] != original_ids:
@@ -285,7 +362,7 @@ def prepare(source, audio_dir, derived_storyboard, timing_report, voice_id=None,
         "derived_target_duration_seconds": derived["format"]["target_duration_seconds"],
         "scenes": scenes_report,
         "subtitle_output": str(subtitle_output),
-        "subtitle_alignment": subtitle_report,
+        "subtitle_alignment": subtitle_report,\n        "audio_cache": audio_cache,
     }
     renderer.save_json(timing_report, report)
     if hashlib.sha256(source.read_bytes()).hexdigest() != source_hash:
@@ -301,11 +378,11 @@ def main():
     parser.add_argument("--timing-report", type=Path, required=True)
     parser.add_argument("--subtitle-output", type=Path, help="Output SRT with word-boundary timing when available")
     parser.add_argument("--voice", default="zh-CN-YunxiNeural")
-    parser.add_argument("--margin-seconds", type=float, default=0.25)
+    parser.add_argument("--margin-seconds", type=float, default=0.25)\n    parser.add_argument("--force", action="store_true", help="Ignore the narration cache and re-synthesize every scene")
     args = parser.parse_args()
     try:
         report = prepare(args.storyboard, args.audio_dir, args.derived_storyboard,
-                         args.timing_report, args.voice, args.margin_seconds, args.subtitle_output)
+                         args.timing_report, args.voice, args.margin_seconds, args.subtitle_output, args.force)
         print(json.dumps({
             "status": "complete",
             "provider": report["provider"],
@@ -316,7 +393,7 @@ def main():
             "audio_dir": str(args.audio_dir),
             "timing_report": str(args.timing_report),
             "subtitle_output": report["subtitle_output"],
-            "subtitle_alignment": report["subtitle_alignment"],
+            "subtitle_alignment": report["subtitle_alignment"],\n            "audio_cache": report["audio_cache"],
         }, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f"Narration preparation failed: {exc}", file=sys.stderr)
