@@ -1,4 +1,4 @@
-name: Word-boundary TTS experiment
+name: Full-book narration and subtitle alignment experiment
 
 on:
   push:
@@ -13,8 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  render-word-boundary-sample:
+  render-full-book-video:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,76 +29,149 @@ jobs:
         run: |
           python -m pip install -r tools/book-video-renderer/requirements.txt
           python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
-      - name: Prepare a two-scene sample without changing the source storyboard
+      - name: Prepare all ten original scenes without changing the source storyboard
         run: |
-          mkdir -p /tmp/word-boundary-sample output/word-boundary-sample .local/runs/word-boundary-sample
+          mkdir -p /tmp/full-book-video output/full-book-video .local/runs/full-book-video
           python - <<'PY'
+          import hashlib
           import json
           from pathlib import Path
 
           source = Path("examples/book-video/naval-test-001/storyboard.json")
           original = source.read_bytes()
-          sample = json.loads(original)
-          sample["scenes"] = sample["scenes"][:2]
-          sample["format"]["target_duration_seconds"] = sum(
-              scene["duration_seconds"] for scene in sample["scenes"]
+          original_hash = hashlib.sha256(original).hexdigest()
+          storyboard = json.loads(original)
+          assert len(storyboard["scenes"]) == 10, f"Expected 10 scenes, got {len(storyboard['scenes'])}"
+          source_narration = [scene["narration"] for scene in storyboard["scenes"]]
+          Path("/tmp/full-book-video/storyboard.json").write_text(
+              json.dumps(storyboard, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
           )
-          assert len(sample["scenes"]) == 2
-          assert sample["format"]["target_duration_seconds"] == 18
-          Path("/tmp/word-boundary-sample/storyboard.json").write_text(
-              json.dumps(sample, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-          )
+          assert [scene["narration"] for scene in json.loads(Path("/tmp/full-book-video/storyboard.json").read_text())["scenes"]] == source_narration
           assert source.read_bytes() == original
-          print("Prepared two scenes; source storyboard is unchanged.")
+          print(f"Prepared {len(storyboard['scenes'])} scenes; source SHA-256={original_hash}; narration preserved verbatim.")
           PY
-      - name: Synthesize narration and word-boundary subtitles
+      - name: Generate a quiet procedural ambient music test track
+        run: |
+          python - <<'PY'
+          import array
+          import math
+          import wave
+          from pathlib import Path
+
+          # Original procedural test audio: sustained soft chords plus sparse
+          # bell-like notes. It is generated here only to exercise music mixing;
+          # it is not presented as a production soundtrack.
+          sample_rate = 24000
+          duration_seconds = 130
+          chords = [
+              (73.42, 110.00, 146.83, 220.00),    # D minor
+              (58.27, 116.54, 146.83, 233.08),   # B-flat
+              (87.31, 130.81, 174.61, 261.63),   # F
+              (65.41, 98.00, 164.81, 196.00),    # C
+          ]
+          melody = (293.66, 349.23, 392.00, 440.00, 523.25, 440.00, 392.00, 349.23)
+          samples = array.array("h")
+          tau = 2.0 * math.pi
+          for index in range(sample_rate * duration_seconds):
+              t = index / sample_rate
+              chord_phase = t % 16.0
+              chord = chords[int(t // 16.0) % len(chords)]
+              chord_envelope = min(1.0, chord_phase / 0.9, (16.0 - chord_phase) / 0.9)
+              pad = sum(
+                  math.sin(tau * frequency * t) + 0.15 * math.sin(tau * 2.0 * frequency * t)
+                  for frequency in chord
+              ) / 4.6
+              melody_phase = t % 3.0
+              melody_frequency = melody[int(t // 3.0) % len(melody)]
+              bell = 0.0
+              if melody_phase < 1.25:
+                  bell = math.sin(tau * melody_frequency * t) * math.exp(-2.7 * melody_phase)
+              fade = min(1.0, t / 2.0, (duration_seconds - t) / 5.0)
+              value = (0.78 * pad * chord_envelope + 0.18 * bell) * max(0.0, fade)
+              samples.append(int(max(-0.98, min(0.98, value)) * 32767))
+          path = Path("output/full-book-video/procedural-ambient.wav")
+          with wave.open(str(path), "wb") as audio:
+              audio.setnchannels(1)
+              audio.setsampwidth(2)
+              audio.setframerate(sample_rate)
+              audio.writeframes(samples.tobytes())
+          print(f"Generated {duration_seconds}s procedural ambience at {sample_rate} Hz: {path}")
+          PY
+      - name: Synthesize all narration and align subtitles to live Edge TTS boundaries
         run: |
           python tools/book-video-renderer/prepare_narration.py \
-            /tmp/word-boundary-sample/storyboard.json \
-            --audio-dir output/word-boundary-sample/audio \
-            --derived-storyboard .local/runs/word-boundary-sample/storyboard.render.json \
-            --timing-report output/word-boundary-sample/timing-report.json \
-            --subtitle-output output/word-boundary-sample/aligned-subtitles.srt \
+            /tmp/full-book-video/storyboard.json \
+            --audio-dir output/full-book-video/audio \
+            --derived-storyboard .local/runs/full-book-video/storyboard.render.json \
+            --timing-report output/full-book-video/timing-report.json \
+            --subtitle-output output/full-book-video/aligned-subtitles.srt \
             --voice zh-CN-YunxiNeural
-      - name: Render video with the prepared narration and aligned SRT
+      - name: Render the complete video with narration, aligned subtitles, and background music
         run: |
           FONT="$(fc-match -f '%{file}' 'Noto Sans CJK SC' | head -n 1)"
           test -n "$FONT"
           python tools/book-video-renderer/renderer.py \
-            .local/runs/word-boundary-sample/storyboard.render.json \
+            .local/runs/full-book-video/storyboard.render.json \
             --font "$FONT" \
-            --output output/word-boundary-sample \
-            --tts-audio-dir output/word-boundary-sample/audio \
+            --output output/full-book-video \
+            --tts-audio-dir output/full-book-video/audio \
             --tts-audio-provider edge-tts \
             --tts-audio-voice zh-CN-YunxiNeural \
-            --subtitle-file output/word-boundary-sample/aligned-subtitles.srt
-      - name: Report alignment coverage
+            --subtitle-file output/full-book-video/aligned-subtitles.srt \
+            --music-file output/full-book-video/procedural-ambient.wav \
+            --music-volume-db -24
+      - name: Validate full-book alignment, audio mix, video format, and source preservation
         run: |
           python - <<'PY'
           import json
+          import subprocess
           from pathlib import Path
 
-          report = json.loads(Path("output/word-boundary-sample/timing-report.json").read_text())
-          aligned = [
-              scene_id for scene_id, item in report["subtitle_alignment"].items()
-              if item["alignment"] == "word_boundary"
-          ]
-          fallback = [
-              scene_id for scene_id, item in report["subtitle_alignment"].items()
-              if item["alignment"] != "word_boundary"
-          ]
-          print(f"Word-boundary aligned scenes: {aligned}")
-          print(f"Fallback scenes: {fallback}")
-          print(f"Timing report target: {report['derived_target_duration_seconds']} seconds")
+          root = Path("output/full-book-video")
+          manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+          timing = json.loads((root / "timing-report.json").read_text(encoding="utf-8"))
+          assert manifest["status"] == "complete", manifest.get("error")
+          assert manifest["speech_status"] == "generated_audio", manifest.get("speech_status")
+          assert len(manifest["scenes"]) == 10, f"Rendered {len(manifest['scenes'])} scenes"
+          assert all(scene["status"] == "complete" and scene["audio"] for scene in manifest["scenes"])
+          assert manifest.get("music", {}).get("status") == "supplied", manifest.get("music")
+          alignment = timing["subtitle_alignment"]
+          aligned = [scene_id for scene_id, item in alignment.items() if item["alignment"] == "word_boundary"]
+          fallback = [scene_id for scene_id, item in alignment.items() if item["alignment"] != "word_boundary"]
+          print(f"Word-boundary aligned scenes ({len(aligned)}/10): {aligned}")
+          print(f"Fallback scenes ({len(fallback)}): {fallback}")
+          print(f"Final target duration: {timing['derived_target_duration_seconds']:.2f}s")
+          assert len(aligned) == 10 and not fallback, "Full-book subtitle alignment did not reach 100% coverage"
+          srt = (root / "aligned-subtitles.srt").read_text(encoding="utf-8")
+          cue_count = sum(1 for line in srt.splitlines() if line.strip().isdigit())
+          assert cue_count >= 50, f"Unexpectedly few aligned subtitle cues: {cue_count}"
+          video = root / "final.mp4"
+          probe = json.loads(subprocess.check_output([
+              "ffprobe", "-v", "error", "-show_entries",
+              "format=duration:stream=codec_type,codec_name,width,height,r_frame_rate",
+              "-of", "json", str(video)
+          ], text=True))
+          streams = probe["streams"]
+          v = next(stream for stream in streams if stream["codec_type"] == "video")
+          a = next(stream for stream in streams if stream["codec_type"] == "audio")
+          duration = float(probe["format"]["duration"])
+          assert (v["width"], v["height"]) == (1080, 1920), v
+          assert v["codec_name"] == "h264", v
+          assert a["codec_name"] == "aac", a
+          assert 100 <= duration <= 140, f"Unexpected final duration: {duration}"
+          subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-f", "null", "-"], check=True)
+          print(f"PASS: {duration:.2f}s MP4, H.264 1080x1920, AAC mixed audio, {cue_count} subtitle cues, all 10 scenes word-aligned.")
           PY
-      - name: Upload sample video and timing diagnostics
+      - name: Upload full video and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: word-boundary-tts-sample
+          name: naval-test-001-full-book-tts-music
           path: |
-            output/word-boundary-sample/final.mp4
-            output/word-boundary-sample/manifest.json
-            output/word-boundary-sample/aligned-subtitles.srt
-            output/word-boundary-sample/timing-report.json
+            output/full-book-video/final.mp4
+            output/full-book-video/manifest.json
+            output/full-book-video/aligned-subtitles.srt
+            output/full-book-video/timing-report.json
+            output/full-book-video/procedural-ambient.wav
+          if-no-files-found: warn
           retention-days: 7
