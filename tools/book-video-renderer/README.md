@@ -112,12 +112,12 @@ Generate the per-scene stills first and save them under `output/naval-test-001/i
 
 ```bash
 python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
-python tools/book-video-renderer/pipeline.py \\
-  examples/book-video/naval-test-001/storyboard.json \\
-  --output output/naval-test-001 \\
-  --assets-dir output/naval-test-001/images \\
-  --tts-provider edge-tts \\
-  --tts-voice zh-CN-YunxiNeural \\
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural \
   --music-file output/naval-test-001/music.mp3
 ```
 
