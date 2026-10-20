@@ -118,6 +118,31 @@ class UnitTests(unittest.TestCase):
         ])
         self.assertIsNone(mismatch)
 
+    def test_word_boundary_mapping_ignores_punctuation_omitted_by_tts(self):
+        narration = "为什么有人睡觉的时候，财富还在增长？《纳瓦尔宝典》给出的答案，可能和你的直觉相反。"
+        boundary_texts = [
+            "为什么有人睡觉的时候",
+            "财富还在增长",
+            "纳瓦尔宝典",
+            "给出的答案",
+            "可能和你的",
+            "直觉相反",
+        ]
+        boundaries = [
+            {
+                "start_seconds": index * 0.4,
+                "end_seconds": (index + 1) * 0.4,
+                "text": text,
+            }
+            for index, text in enumerate(boundary_texts)
+        ]
+        mapped = prepare_narration.map_boundaries_to_source(narration, boundaries)
+        self.assertIsNotNone(mapped)
+        self.assertEqual("".join(item["text"] for item in mapped), narration)
+        self.assertIn("，", mapped[0]["text"] + mapped[1]["text"])
+        self.assertIn("《", mapped[2]["text"])
+        self.assertTrue(mapped[-1]["text"].endswith("。"))
+
     def test_aligned_srt_uses_word_timing_and_falls_back_without_text_mismatch(self):
         data = fixture()
         boundaries = {
