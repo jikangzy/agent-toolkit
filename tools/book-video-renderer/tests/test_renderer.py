@@ -141,11 +141,11 @@ class UnitTests(unittest.TestCase):
 
     def test_external_srt_validation_checks_timestamps_and_video_duration(self):
         valid = self.root/'valid.srt'
-        valid.write_text("1\\n00:00:00,000 --> 00:00:01,000\\n中文字幕\\n", encoding="utf-8")
+        valid.write_text("1\n00:00:00,000 --> 00:00:01,000\n中文字幕\n", encoding="utf-8")
         result = r.validate_subtitle_file(valid, 3)
         self.assertEqual(result["cue_count"], 1)
         invalid = self.root/'invalid.srt'
-        invalid.write_text("1\\n00:00:02,000 --> 00:00:04,000\\n越界字幕\\n", encoding="utf-8")
+        invalid.write_text("1\n00:00:02,000 --> 00:00:04,000\n越界字幕\n", encoding="utf-8")
         with self.assertRaisesRegex(r.RenderError, 'beyond the final video duration'):
             r.validate_subtitle_file(invalid, 3)
 
@@ -520,8 +520,8 @@ class IntegrationTests(unittest.TestCase):
         source.write_text(json.dumps(data, ensure_ascii=False))
         custom_srt = self.root/'aligned.srt'
         custom_srt.write_text(
-            "1\\n00:00:00,000 --> 00:00:01,000\\n这是第一条字幕。\\n\\n"
-            "2\\n00:00:01,000 --> 00:00:02,000\\n这是第二条字幕。\\n",
+            "1\n00:00:00,000 --> 00:00:01,000\n这是第一条字幕。\n\n"
+            "2\n00:00:01,000 --> 00:00:02,000\n这是第二条字幕。\n",
             encoding='utf-8'
         )
         result = r.render(source, self.root/'aligned-output', FONT, subtitle_file=custom_srt)
