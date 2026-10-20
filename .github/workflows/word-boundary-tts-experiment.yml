@@ -1,0 +1,103 @@
+name: Word-boundary TTS experiment
+
+on:
+  push:
+    branches:
+      - experiment/word-boundary-tts
+    paths:
+      - ".github/workflows/word-boundary-tts-experiment.yml"
+      - "tools/book-video-renderer/**"
+      - "examples/book-video/naval-test-001/storyboard.json"
+
+permissions:
+  contents: read
+
+jobs:
+  render-word-boundary-sample:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install FFmpeg and CJK fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fontconfig fonts-noto-cjk
+      - name: Install renderer and Edge TTS
+        run: |
+          python -m pip install -r tools/book-video-renderer/requirements.txt
+          python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
+      - name: Prepare a two-scene sample without changing the source storyboard
+        run: |
+          mkdir -p /tmp/word-boundary-sample output/word-boundary-sample .local/runs/word-boundary-sample
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path("examples/book-video/naval-test-001/storyboard.json")
+          original = source.read_bytes()
+          sample = json.loads(original)
+          sample["scenes"] = sample["scenes"][:2]
+          sample["format"]["target_duration_seconds"] = sum(
+              scene["duration_seconds"] for scene in sample["scenes"]
+          )
+          assert len(sample["scenes"]) == 2
+          assert sample["format"]["target_duration_seconds"] == 18
+          Path("/tmp/word-boundary-sample/storyboard.json").write_text(
+              json.dumps(sample, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          assert source.read_bytes() == original
+          print("Prepared two scenes; source storyboard is unchanged.")
+          PY
+      - name: Synthesize narration and word-boundary subtitles
+        run: |
+          python tools/book-video-renderer/prepare_narration.py \
+            /tmp/word-boundary-sample/storyboard.json \
+            --audio-dir output/word-boundary-sample/audio \
+            --derived-storyboard .local/runs/word-boundary-sample/storyboard.render.json \
+            --timing-report output/word-boundary-sample/timing-report.json \
+            --subtitle-output output/word-boundary-sample/aligned-subtitles.srt \
+            --voice zh-CN-YunxiNeural
+      - name: Render video with the prepared narration and aligned SRT
+        run: |
+          FONT="$(fc-match -f '%{file}' 'Noto Sans CJK SC' | head -n 1)"
+          test -n "$FONT"
+          python tools/book-video-renderer/renderer.py \
+            .local/runs/word-boundary-sample/storyboard.render.json \
+            --font "$FONT" \
+            --output output/word-boundary-sample \
+            --tts-audio-dir output/word-boundary-sample/audio \
+            --tts-audio-provider edge-tts \
+            --tts-audio-voice zh-CN-YunxiNeural \
+            --subtitle-file output/word-boundary-sample/aligned-subtitles.srt
+      - name: Report alignment coverage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("output/word-boundary-sample/timing-report.json").read_text())
+          aligned = [
+              scene_id for scene_id, item in report["subtitle_alignment"].items()
+              if item["alignment"] == "word_boundary"
+          ]
+          fallback = [
+              scene_id for scene_id, item in report["subtitle_alignment"].items()
+              if item["alignment"] != "word_boundary"
+          ]
+          print(f"Word-boundary aligned scenes: {aligned}")
+          print(f"Fallback scenes: {fallback}")
+          print(f"Timing report target: {report['derived_target_duration_seconds']} seconds")
+          PY
+      - name: Upload sample video and timing diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-boundary-tts-sample
+          path: |
+            output/word-boundary-sample/final.mp4
+            output/word-boundary-sample/manifest.json
+            output/word-boundary-sample/aligned-subtitles.srt
+            output/word-boundary-sample/timing-report.json
+          retention-days: 7
