@@ -113,6 +113,18 @@ class UnitTests(unittest.TestCase):
         self.assertIsNotNone(mapped)
         self.assertEqual("".join(item["text"] for item in mapped), narration)
 
+        # The provider can omit punctuation-only events; map the remaining word
+        # boundaries to exact source slices without losing source punctuation.
+        punctuated = "为什么，财富增长？"
+        punctuation_free = [
+            {"start_seconds": 0.0, "end_seconds": 0.5, "text": "为什么"},
+            {"start_seconds": 0.5, "end_seconds": 0.9, "text": "财富"},
+            {"start_seconds": 0.9, "end_seconds": 1.3, "text": "增长"},
+        ]
+        punctuation_mapped = prepare_narration.map_boundaries_to_source(punctuated, punctuation_free)
+        self.assertIsNotNone(punctuation_mapped)
+        self.assertEqual("".join(item["text"] for item in punctuation_mapped), punctuated)
+
         mismatch = prepare_narration.map_boundaries_to_source(narration, [
             {"start_seconds": 0.0, "end_seconds": 0.5, "text": "不匹配"}
         ])
