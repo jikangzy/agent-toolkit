@@ -128,7 +128,7 @@ def subtitles(data):
 
 
 def _srt_seconds(value):
-    match = re.fullmatch(r'(\\d{2}):(\\d{2}):(\\d{2}),(\\d{3})', value)
+    match = re.fullmatch(r'(\d{2}):(\d{2}):(\d{2}),(\d{3})', value)
     if not match:
         raise RenderError(f'Invalid SRT timestamp: {value}')
     hours, minutes, seconds, milliseconds = map(int, match.groups())
@@ -142,7 +142,7 @@ def validate_subtitle_file(path, duration):
         raise RenderError(f'Subtitle file does not exist: {path}')
     content = path.read_text(encoding='utf-8-sig')
     pattern = re.compile(
-        r'(?m)^(\\d{2}:\\d{2}:\\d{2},\\d{3})\\s*-->\\s*(\\d{2}:\\d{2}:\\d{2},\\d{3})\\s*def resolve_music(data, music_file=None, volume_override=None):
+        r'(?m)^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})\s*def resolve_music(data, music_file=None, volume_override=None):
     """Validate an optional local music track; never synthesize or download music."""
     music = data.get('music', {})
     enabled = music.get('enabled', True)
