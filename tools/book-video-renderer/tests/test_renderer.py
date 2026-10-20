@@ -197,6 +197,35 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(provider.speech_status, 'generated_audio')
         self.assertIn('external Edge TTS service', provider.provider_notice)
 
+    def test_music_requires_enabled_flag_and_valid_local_audio(self):
+        data = fixture()
+        data['music']['enabled'] = False
+        supplied = self.root/'music.wav'
+        supplied.write_bytes(b'fake audio')
+        with self.assertRaisesRegex(r.RenderError, 'music.enabled is false'):
+            r.resolve_music(data, supplied)
+
+        data['music']['enabled'] = True
+        with patch.object(r, 'probe', return_value={
+            'streams': [{'codec_type': 'audio'}], 'format': {'duration': '1.0'}
+        }):
+            path, volume = r.resolve_music(data, supplied)
+            self.assertEqual(path, supplied.resolve())
+            self.assertEqual(volume, -24)
+            self.assertEqual(r.resolve_music(data, supplied, -18)[1], -18)
+            for invalid in (-60.1, 0.1, float('nan'), float('inf')):
+                with self.subTest(volume=invalid), self.assertRaisesRegex(r.RenderError, 'between -60 and 0'):
+                    r.resolve_music(data, supplied, invalid)
+
+        with patch.object(r, 'probe', return_value={
+            'streams': [{'codec_type': 'video'}], 'format': {'duration': '1.0'}
+        }), self.assertRaisesRegex(r.RenderError, 'contains no audio stream'):
+            r.resolve_music(data, supplied)
+
+    def test_music_volume_override_requires_file(self):
+        with self.assertRaisesRegex(r.RenderError, 'requires --music-file'):
+            r.resolve_music(fixture(), None, -24)
+
     def test_no_tts_is_explicit(self):
         provider = r.NoTTS()
         self.assertIn('NO audio', provider.fallback)
@@ -384,6 +413,57 @@ class IntegrationTests(unittest.TestCase):
         self.assertFalse(third['scenes'][0]['cache_hit'])
         self.assertTrue(all(scene['cache_hit'] for scene in third['scenes'][1:]))
         self.assertEqual(source.read_bytes(), original)
+
+    def test_background_music_mixes_with_narration_and_is_recorded(self):
+        data = fixture()
+        source = self.root/'storyboard.json'
+        source.write_text(json.dumps(data, ensure_ascii=False))
+        audio_dir = self.root/'narration'
+        audio_dir.mkdir()
+        for scene in data['scenes']:
+            r.command([
+                'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+                '-f', 'lavfi', '-i', 'sine=frequency=660:duration=1',
+                '-ar', '48000', '-ac', '2', audio_dir/(scene['id']+'.wav')
+            ])
+        music = self.root/'music.wav'
+        r.command([
+            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+            '-f', 'lavfi', '-i', 'sine=frequency=220:duration=2',
+            '-ar', '48000', '-ac', '2', music
+        ])
+
+        result = r.render(
+            source, self.root/'mixed-output', FONT, speech_dir=audio_dir,
+            speech_provider_name='test-tts', speech_voice='test-voice',
+            music_file=music
+        )
+        self.assertEqual(result['status'], 'complete')
+        self.assertEqual(result['qc']['audio_codec'], 'aac')
+        self.assertEqual(result['qc']['duration_seconds'], 15)
+        self.assertEqual(result['music']['status'], 'supplied')
+        self.assertEqual(result['music']['file'], 'music.wav')
+        self.assertEqual(result['music']['sha256'], r.digest(music))
+        self.assertEqual(result['music']['volume_db'], -24)
+        self.assertFalse(any('music omitted' in item for item in result['fallbacks']))
+
+    def test_background_music_can_be_the_only_audio_track(self):
+        data = fixture()
+        source = self.root/'music-only-storyboard.json'
+        source.write_text(json.dumps(data, ensure_ascii=False))
+        music = self.root/'music-only.wav'
+        r.command([
+            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+            '-f', 'lavfi', '-i', 'sine=frequency=330:duration=2',
+            '-ar', '48000', '-ac', '2', music
+        ])
+
+        result = r.render(source, self.root/'music-only-output', FONT, music_file=music)
+        self.assertEqual(result['status'], 'complete')
+        self.assertEqual(result['speech_status'], 'fallback_no_audio')
+        self.assertEqual(result['qc']['audio_codec'], 'aac')
+        self.assertEqual(result['music']['status'], 'supplied')
+        self.assertTrue(any('NO audio track' in item for item in result['fallbacks']))
 
     def test_aac_adapter_and_reject_truncation(self):
         scene = fixture()['scenes'][0]
