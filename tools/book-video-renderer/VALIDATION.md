@@ -67,3 +67,41 @@ Run: https://github.com/jikangzy/agent-toolkit/actions/runs/39436447215
 - The renderer can mix a supplied local music file via `--music-file`, loop/trim it to the video duration, and apply the storyboard's `music.volume_db`; it does not generate music. Cinematic transitions are not implemented and cuts are used.
 - The TTS preflight collects Edge TTS word-boundary events from the same synthesis stream. It aligns spoken characters to the original narration while ignoring punctuation omitted by the provider, then restores all original punctuation in the timed source slices. If spoken text truly differs, it falls back per scene to proportional timing. The renderer validates and burns an optional supplied SRT through `--subtitle-file`. Live TTS is not part of normal PR CI; both two-scene and full 10-scene live Edge TTS experiments passed.
 - Generated media, audio, image assets, fonts and caches belong under ignored local `output/` / `.local/runs/` directories or short-lived CI artifacts, never in Git.
+
+
+## Offline modular MVP cloud validation (2026-10-20 UTC)
+
+The full original Naval storyboard was rendered locally in the cloud using FFmpeg,
+Noto CJK, and the offline adapters. No external image/video/TTS service or music
+was called or downloaded. The source JSON, narration, on-screen text and scene
+order were preserved.
+
+- Command: `PYTHONPATH=tools/book-video-renderer python -m book_video_renderer render --storyboard examples/book-video/naval-test-001/storyboard.json --output output/naval-test-001`
+- Output: `output/naval-test-001/final.mp4`, 10 independent scene MP4s, SRT,
+  `unburned.mp4`, and manifest/cache artifacts (all ignored by Git).
+- QC: 1080×1920, 30 fps, H.264/yuv420p; 113.0 seconds versus 120-second declared
+  target (5.83% difference). All 10 scenes present, subtitles burned. FFmpeg full
+  decode passed. A frame was inspected to confirm readable Chinese title/subtitles.
+- Speech: `fallback_no_audio`, with nullable per-scene `audio_path`. No real TTS
+  was claimed. AAC encoding is covered by recorded-audio integration tests.
+- Music: `skipped`, because no safe local track was supplied.
+- Placeholder motion follows zoom-in, zoom-out, pan right/down, or push-in requests;
+  unsupported motion falls back to gentle push-in. Scene transitions use cuts.
+
+New regressions cover scene order and gaps, frame-rounded total duration,
+per-direction motion filters, failed validation manifests, missing-CJK-font
+preservation of SRT/unburned video, and retry/resume after scene_002 fails while
+scene_001 remains cached. Existing tests also verify schema validation, source
+immutability, real AAC encoding, cached/corrupt clips, supplied images, local music,
+and mocked (never live) TTS adapters.
+
+The final full suite passed **44 tests with zero skips** in 72.096 seconds using
+`BOOK_VIDEO_FONT=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc python -m unittest discover -s tools/book-video-renderer/tests -v`.
+A second identical full Naval invocation passed QC and reported all **10 scenes as
+`skipped_cached`**. The original storyboard has no Git diff. The MP4 and all run
+artifacts remain local and were not committed.
+
+After preserving the four newer upstream main commits (through `77bbd9b`), the
+complete suite passed **45 tests with zero skips** in 50.061 seconds. This includes
+the upstream punctuation-tolerant alignment regression. No renderer-package or
+Naval source content changed during that integration.

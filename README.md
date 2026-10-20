@@ -41,6 +41,22 @@ final.mp4
 
 **Current MVP limitations:** image generation happens in the agent workflow, not inside the CLI; missing images become clearly labeled placeholders. Edge TTS is optional and online (narration text is sent to the external service); the default renderer has no narration. Local background music can be mixed using `--music-file`, but music generation is not implemented. The TTS preflight can create word-boundary-timed subtitles when the provider metadata exactly matches the original narration, with a safe scene-timing fallback otherwise. AI video generation and guaranteed word-level subtitle alignment across all providers are not implemented. See [Book Video Renderer documentation](tools/book-video-renderer/README.md) for commands and validation details.
 
+Run the offline MVP from the repository root (FFmpeg/ffprobe and a CJK font required):
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements.txt
+python tools/book-video-renderer/renderer.py render \
+  --storyboard examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001
+```
+
+This preserves the storyboard, creates per-scene MP4s, burns Chinese subtitles,
+verifies the final video, and records cache/fallback/QC details in `manifest.json`.
+No API key or external service is needed. The default has placeholder visuals and
+no speech audio or BGM. Repeating the command reuses validated scene caches. See
+[renderer documentation](tools/book-video-renderer/README.md) for provider interfaces,
+font failure recovery, tests, and manifest fields.
+
 ## Install WorkBuddy skills
 
 On Windows, run from the repository root:
