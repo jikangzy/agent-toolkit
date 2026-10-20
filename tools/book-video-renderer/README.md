@@ -1,5 +1,87 @@
 # Book Video Renderer MVP
 
+## Offline MVP (no API key required)
+
+From the repository root, install Python dependencies and ensure `ffmpeg` / `ffprobe`
+(with libx264 and libass) are on PATH. Install a CJK font, for example the Ubuntu
+`fonts-noto-cjk` package, or pass `--font /path/to/font.ttc`.
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements.txt
+python tools/book-video-renderer/renderer.py render \
+  --storyboard examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001
+```
+
+Equivalent module invocation:
+
+```bash
+PYTHONPATH=tools/book-video-renderer python -m book_video_renderer render \
+  --storyboard examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001
+```
+
+Run the same command again to reuse verified per-scene caches. Each run regenerates
+SRT and final assembly. One process may own an output directory at a time.
+
+This default is fully offline: deterministic placeholder visuals, unchanged source
+`onscreen_text`, Ken Burns motion selected from `visual.motion`, proportional subtitle
+timing, no narration audio, and no BGM. `NoTTS` explicitly records `fallback_no_audio`;
+it never labels silence as synthesized speech. Real narration produces AAC audio.
+`video` / `broll` use the static visual fallback. Unknown motion (including fade-in)
+uses gentle push-in; transitions currently use cuts.
+
+Validation uses the shared schema and requires unique, contiguous scene IDs in
+original order (`scene_001`, `scene_002`, ...). Invalid order fails; it is never sorted.
+Scene durations are rounded per frame and summed without editing the input. The
+Naval example produces 113 seconds (10 scenes), within 8% of its declared 120 seconds.
+
+`manifest.json` records `storyboard_path`, `storyboard_hash`, `renderer_version`,
+`total_duration_seconds`, `target_duration_seconds`, and `overall_status`. Each scene
+records `input_hash`, `visual_asset_path`, nullable `audio_path`, `scene_video_path`,
+`duration`, `error`, `retry_count` (including retries across runs with the same input),
+plus `pending` / `rendering` / `completed` / `failed` / `skipped_cached` status.
+`final_video_path` is populated only after successful QC. The legacy top-level
+`status: complete` is retained for compatibility. Music without a local file is
+`skipped`. Scene cache reuse verifies the clip, visual, and audio hashes and ffprobe
+metadata; failed scenes retain other successful scene outputs.
+
+The renderer discovers a font and checks glyph coverage for all source text. If no
+font covers the text, it still preserves scene backgrounds, `subtitles.srt`, and
+`unburned.mp4`, records the subtitle/font failure, and exits nonzero. These backgrounds
+have no title overlay. It does **not** report a successful final video. Installing a
+font and rerunning completes title overlays and subtitle burn-in. After any failed
+run, an old `final.mp4` may remain; consult the current manifest, not file existence.
+
+### Implementation and future providers
+
+`renderer.py` is a compatibility entrypoint. The `book_video_renderer/` package
+separates `cli`, `models`, `validator`, `renderer`, `scene`, `ffmpeg`, `fonts`,
+`subtitle`, `manifest` (hash/cache/retry utilities), `qc`, and `providers/{image,video,tts,music}`.
+
+- `TTSProvider.synthesize(scene_id, narration, voice, duration, workdir)` receives the
+  narration verbatim and returns a real speech path or `None`. A future local or
+  cloud adapter implements this protocol and provides a configuration-sensitive
+  `cache_key`; pass an instance through `render(..., provider=adapter)`. Validate
+  or convert its output before returning it. Overlong audio fails rather than
+  being cut. Add CLI selection when a real provider is chosen; keep credentials in
+  environment/configuration outside source control. `RecordedSpeech` already accepts
+  caller-supplied WAV files. No paid or external-account provider was used for MVP validation.
+- `ImageProvider.generate_image` and `VideoProvider.generate_video` define the visual
+  boundary. Local placeholder/static adapters implement the current path; a real
+  adapter can replace them at `prepare_visual`. Real video clip ingestion is future work.
+- `MusicProvider.get_or_generate_music` defines the music boundary; `NoMusic` returns
+  `None`. Local, properly licensed files remain optional through `--music-file`.
+
+The pre-existing Edge TTS adapter below is opt-in, online, and excluded from base
+requirements. The default command does not import it or contact its service.
+
+Automatic QC verifies readable H.264 video, 1080×1920, 30 fps, yuv420p, expected AAC
+when audio is present, full scene count, final duration against both scene sum and
+storyboard target. QC is printed by the CLI and saved under `manifest.qc`.
+`unburned.mp4` is retained for diagnosis even on successful runs.
+
+
 Python CLI for the repository's locked storyboard contract. It validates the existing JSON Schema, preserves scene order and exact narration/on-screen text, accepts optional per-scene AI-generated still images, falls back to labeled placeholder cards for missing images, adds gentle push-in motion, creates Chinese SRT subtitles, burns them into the final video, and verifies output with ffprobe. The CLI does not itself call an image-generation API; the agent or user supplies generated images.
 
 ## Setup
@@ -125,6 +207,7 @@ output/naval-test-001/
   final.mp4
   manifest.json
   subtitles.srt
+  unburned.mp4
   scenes/scene_001.mp4 ...
   cache/<content-hash>/visual.png, clip.mp4, complete.json
   fonts/                         # local subtitle font copy
@@ -158,7 +241,7 @@ Provide `scene_001.wav` through `scene_010.wav`, each matching its scene's exact
 
 ## Retry, resume and failure behavior
 
-Scene cache keys include the complete scene, voice/provider key, renderer source hash, font hash and FFmpeg version. Cache hits require a matching SHA-256 and passing ffprobe checks. Changed/corrupt assets are rebuilt independently; successful scene caches survive retries and restarts. SRT/final assembly are regenerated on each run. Failures retry up to `--attempts` with bounded exponential backoff. Errors/attempts and scene states are persisted in the manifest. Validation/dependency errors are not retried.
+Scene cache keys include the complete scene, voice/provider key, renderer package source hash, font hash and FFmpeg version. Cache hits require a matching SHA-256 and passing ffprobe checks. Changed/corrupt assets are rebuilt independently; successful scene caches survive retries and restarts. SRT/final assembly are regenerated on each run. Failures retry up to `--attempts` with bounded exponential backoff. Errors/attempts and scene states are persisted in the manifest. Validation/dependency errors are not retried.
 
 The final MP4 is verified before atomic replacement. On failure the CLI exits nonzero and records a failed manifest; any older `final.mp4` is not proof that the new run succeeded. Use manifest status and final SHA-256 to identify a successful run. Run one process per output directory.
 

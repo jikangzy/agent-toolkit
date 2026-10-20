@@ -11,6 +11,12 @@ import types
 import unittest
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import book_video_renderer.renderer as engine
+import book_video_renderer.providers.tts as tts
+import book_video_renderer.providers.music as music
+import book_video_renderer.qc as qc
+
 MODULE = Path(__file__).resolve().parents[1] / 'renderer.py'
 spec = importlib.util.spec_from_file_location('renderer', MODULE)
 r = importlib.util.module_from_spec(spec)
@@ -308,7 +314,7 @@ class UnitTests(unittest.TestCase):
             r.resolve_music(data, supplied)
 
         data['music']['enabled'] = True
-        with patch.object(r, 'probe', return_value={
+        with patch.object(music, 'probe', return_value={
             'streams': [{'codec_type': 'audio'}], 'format': {'duration': '1.0'}
         }):
             path, volume = r.resolve_music(data, supplied)
@@ -319,7 +325,7 @@ class UnitTests(unittest.TestCase):
                 with self.subTest(volume=invalid), self.assertRaisesRegex(r.RenderError, 'between -60 and 0'):
                     r.resolve_music(data, supplied, invalid)
 
-        with patch.object(r, 'probe', return_value={
+        with patch.object(music, 'probe', return_value={
             'streams': [{'codec_type': 'video'}], 'format': {'duration': '1.0'}
         }), self.assertRaisesRegex(r.RenderError, 'contains no audio stream'):
             r.resolve_music(data, supplied)
@@ -339,7 +345,7 @@ class UnitTests(unittest.TestCase):
 
     def test_missing_dependency_writes_failed_manifest(self):
         source = self.write(fixture())
-        with patch.object(r.shutil, 'which', return_value=None), self.assertRaisesRegex(r.RenderError, 'Missing executable'):
+        with patch.object(engine.shutil, 'which', return_value=None), self.assertRaisesRegex(r.RenderError, 'Missing executable'):
             r.render(source, self.root/'output')
         manifest = json.loads((self.root/'output/manifest.json').read_text())
         self.assertEqual(manifest['status'], 'failed')
@@ -349,7 +355,7 @@ class UnitTests(unittest.TestCase):
         source = self.write(fixture())
         font = self.root/'fake-font'
         font.write_bytes(b'fixture')
-        with patch.object(r, 'find_font', return_value=font), patch.object(r, 'command', return_value='ffmpeg test'), patch.object(r, 'encode_scene', side_effect=r.RenderError('encoder unavailable')), patch.object(r.time, 'sleep'):
+        with patch.object(engine, 'find_font', return_value=font), patch.object(engine, 'command', return_value='ffmpeg test'), patch.object(engine, 'encode_scene', side_effect=r.RenderError('encoder unavailable')), patch.object(r.time, 'sleep'):
             with self.assertRaisesRegex(r.RenderError, 'encoder unavailable'):
                 r.render(source, self.root/'output', attempts=2)
         manifest = json.loads((self.root/'output/manifest.json').read_text())
@@ -370,7 +376,7 @@ class UnitTests(unittest.TestCase):
     def test_ffprobe_rejects_wrong_codec(self):
         metadata = {'streams': [{'codec_type': 'video', 'codec_name': 'vp9', 'width':1080, 'height':1920,
                                  'r_frame_rate':'30/1', 'pix_fmt':'yuv420p'}], 'format':{'duration':'3'}}
-        with patch.object(r, 'probe', return_value=metadata), self.assertRaisesRegex(r.RenderError, 'format'):
+        with patch.object(qc, 'probe', return_value=metadata), self.assertRaisesRegex(r.RenderError, 'format'):
             r.verify_video('bad.mp4', 3, False)
 
 
@@ -387,7 +393,7 @@ class UnitTests(unittest.TestCase):
         fake_edge_tts = types.SimpleNamespace(__version__='test-version', Communicate=FakeCommunicate)
 
         with patch.dict(sys.modules, {'edge_tts': fake_edge_tts}), patch.object(
-            r, 'probe',
+            tts, 'probe',
             return_value={'streams': [{'codec_type': 'audio'}], 'format': {'duration': '2.5'}}
         ):
             provider = r.EdgeTTS('zh-CN-YunxiNeural')
@@ -415,7 +421,7 @@ class UnitTests(unittest.TestCase):
         fake_edge_tts = types.SimpleNamespace(__version__='test-version', Communicate=FakeCommunicate)
 
         with patch.dict(sys.modules, {'edge_tts': fake_edge_tts}), patch.object(
-            r, 'probe',
+            tts, 'probe',
             return_value={'streams': [{'codec_type': 'audio'}], 'format': {'duration': '5.0'}}
         ):
             provider = r.EdgeTTS('zh-CN-YunxiNeural')
@@ -436,8 +442,8 @@ class UnitTests(unittest.TestCase):
             {'streams': [{'codec_type': 'audio'}], 'format': {'duration': '2.98'}},
         ]
         with patch.dict(sys.modules, {'edge_tts': fake_edge_tts}), patch.object(
-            r, 'probe', side_effect=probe_results
-        ), patch.object(r, 'command') as ffmpeg:
+            tts, 'probe', side_effect=probe_results
+        ), patch.object(tts, 'command') as ffmpeg:
             provider = r.EdgeTTS('zh-CN-YunxiNeural')
             audio = provider.synthesize(
                 'scene_001', '完整旁白', {'speed': 1.0}, 3.0, self.root
