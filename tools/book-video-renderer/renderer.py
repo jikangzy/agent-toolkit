@@ -142,7 +142,25 @@ def validate_subtitle_file(path, duration):
         raise RenderError(f'Subtitle file does not exist: {path}')
     content = path.read_text(encoding='utf-8-sig')
     pattern = re.compile(
-        r'(?m)^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})\s*def resolve_music(data, music_file=None, volume_override=None):
+        r'(?m)^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})\s*$'
+    )
+    matches = list(pattern.finditer(content))
+    if not matches:
+        raise RenderError('Subtitle file has no valid SRT timing entries')
+    previous_start = -1.0
+    for match in matches:
+        start, end = _srt_seconds(match.group(1)), _srt_seconds(match.group(2))
+        if end <= start:
+            raise RenderError('Subtitle cue end must be after its start')
+        if start < previous_start:
+            raise RenderError('Subtitle cues must be ordered by start time')
+        if end > duration + 0.15:
+            raise RenderError('Subtitle cue extends beyond the final video duration')
+        previous_start = start
+    return {'path': path, 'sha256': digest(path), 'cue_count': len(matches)}
+
+
+def resolve_music(data, music_file=None, volume_override=None):
     """Validate an optional local music track; never synthesize or download music."""
     music = data.get('music', {})
     enabled = music.get('enabled', True)
