@@ -129,7 +129,7 @@ class UnitTests(unittest.TestCase):
                 {"start_seconds": 0.0, "end_seconds": 0.5, "text": "wrong"}
             ],
         }
-        srt, report = prepare_narration.build_aligned_srt(data, boundaries)
+        srt, report = prepare_narration.build_aligned_srt(data, boundaries, max_chars=3)
         self.assertEqual(report["scene_001"]["alignment"], "word_boundary")
         self.assertEqual(report["scene_002"]["alignment"], "scene_proportional_fallback")
         self.assertIn("00:00:00,000 --> 00:00:00,400", srt)
@@ -206,6 +206,13 @@ class UnitTests(unittest.TestCase):
             ):
                 prepare_narration.prepare(
                     EXAMPLE, self.root/'audio', self.root/'same.json', self.root/'same.json'
+                )
+            with self.assertRaisesRegex(
+                prepare_narration.renderer.RenderError, 'must not overwrite'
+            ):
+                prepare_narration.prepare(
+                    EXAMPLE, self.root/'audio', self.root/'derived.json',
+                    self.root/'timing.json', subtitle_output=EXAMPLE
                 )
             synthesize.assert_not_called()
 
