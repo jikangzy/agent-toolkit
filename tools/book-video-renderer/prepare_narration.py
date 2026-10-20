@@ -71,6 +71,7 @@ async def synthesize_audio(storyboard, audio_dir, voice_id):
                 text=scene["narration"],
                 voice=provider.voice_id,
                 rate=rate,
+                boundary="WordBoundary",
             )
             stream = getattr(communicate, "stream", None)
             if callable(stream):
