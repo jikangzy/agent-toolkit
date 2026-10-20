@@ -106,6 +106,24 @@ python tools/book-video-renderer/renderer.py \
 
 Optional: `--font /path/to/NotoSansCJKsc-Regular.otf`, `--attempts 3` (1–10).
 
+### One-command pipeline (recommended for narrated videos)
+
+Generate the per-scene stills first and save them under `output/naval-test-001/images/`. The pipeline then pre-synthesizes narration, measures actual speech duration, builds aligned subtitles, and renders the final video in one command:
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural \
+  --music-file output/naval-test-001/music.mp3
+```
+
+The pipeline does **not** generate images or music; those must be supplied locally. Edge TTS sends narration text to an external online service. Speech MP3/WAV files and word-boundary metadata are cached per scene under `.local/runs/<output-name>/audio/`; unchanged scenes are reused without another TTS request. Use `--force-tts` to regenerate all narration. The source storyboard is never rewritten. For offline/no-narration rendering, use `--tts-provider none` or call `renderer.py` directly.
+
+
 ### Use AI-generated images
 
 Generate one still image per scene with the image-generation tool available to your agent, then save each image under an ignored output directory using the scene ID as its filename:
