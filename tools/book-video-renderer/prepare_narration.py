@@ -225,8 +225,8 @@ def build_aligned_srt(storyboard, boundaries_by_scene, max_chars=16, max_duratio
         }
         offset += duration
 
-    srt = "\\n\\n".join(
-        f"{index}\\n{renderer.stamp(entry['start'])} --> {renderer.stamp(entry['end'])}\\n{entry['text']}\\n"
+    srt = "\n\n".join(
+        f"{index}\n{renderer.stamp(entry['start'])} --> {renderer.stamp(entry['end'])}\n{entry['text']}\n"
         for index, entry in enumerate(entries, 1)
     )
     return srt, report
