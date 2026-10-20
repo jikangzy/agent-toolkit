@@ -136,14 +136,14 @@ class MVPTests(unittest.TestCase):
             write_tone(audio/(scene['id'] + '.wav'), 2.5, 220 + index * 35)
             start, end = index * 3, (index + 1) * 3
             cues.append(
-                f'{index + 1}\\n{srt_timestamp(start)} --> {srt_timestamp(end)}\\n'
+                f'{index + 1}\n{srt_timestamp(start)} --> {srt_timestamp(end)}\n'
                 f'{scene["narration"]}'
             )
 
         music = self.root/'music.wav'
         write_tone(music, 1.0, 110)
         subtitle_file = self.root/'aligned.srt'
-        subtitle_file.write_text('\\n\\n'.join(cues) + '\\n', encoding='utf-8')
+        subtitle_file.write_text('\n\n'.join(cues) + '\n', encoding='utf-8')
 
         result = render(
             source, output, FONT, attempts=1,
