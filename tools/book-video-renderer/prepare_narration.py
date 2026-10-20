@@ -10,6 +10,7 @@ import json
 import math
 from pathlib import Path
 import sys
+import unicodedata
 
 # Make the sibling renderer importable when this script is run from the repo root.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -124,10 +125,20 @@ def map_boundaries_to_source(narration, boundaries):
     """Map TTS boundary timings back to exact source-text slices, or return None."""
     if not boundaries:
         return None
-    source_positions = [index for index, char in enumerate(narration) if not char.isspace()]
+    def is_content_character(char):
+        return not char.isspace() and not unicodedata.category(char).startswith("P")
+
+    # Edge TTS may omit punctuation-only spans from word metadata. Ignore
+    # punctuation for matching, then keep it verbatim in the source slices.
+    source_positions = [
+        index for index, char in enumerate(narration) if is_content_character(char)
+    ]
     source_normalized = "".join(narration[index] for index in source_positions)
     boundary_normalized = "".join(
-        char for boundary in boundaries for char in str(boundary.get("text", "")) if not char.isspace()
+        char
+        for boundary in boundaries
+        for char in str(boundary.get("text", ""))
+        if is_content_character(char)
     )
     if not source_positions or boundary_normalized != source_normalized:
         return None
@@ -135,7 +146,7 @@ def map_boundaries_to_source(narration, boundaries):
     mapped = []
     cursor = 0
     for boundary in boundaries:
-        count = sum(1 for char in str(boundary.get("text", "")) if not char.isspace())
+        count = sum(1 for char in str(boundary.get("text", "")) if is_content_character(char))
         if count == 0:
             continue
         start_index = 0 if cursor == 0 else source_positions[cursor]
