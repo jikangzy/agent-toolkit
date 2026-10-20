@@ -219,10 +219,24 @@ def build_aligned_srt(storyboard, boundaries_by_scene, max_chars=16, max_duratio
                 add_entry(start, end, text)
             alignment = "scene_proportional_fallback"
 
+        boundary_text = "".join(str(item.get("text", "")) for item in raw_boundaries)
+        source_compact = "".join(char for char in narration if not char.isspace())
+        boundary_compact = "".join(char for char in boundary_text if not char.isspace())
+        mismatch_index = next(
+            (index for index, (left, right) in enumerate(zip(source_compact, boundary_compact)) if left != right),
+            min(len(source_compact), len(boundary_compact)) if source_compact != boundary_compact else None,
+        )
         report[scene_id] = {
             "alignment": alignment,
             "word_boundaries": len(raw_boundaries),
             "source_text_matched": alignment == "word_boundary",
+            "source_text_preview": narration[:80],
+            "boundary_text_preview": boundary_text[:120],
+            "source_compact_length": len(source_compact),
+            "boundary_compact_length": len(boundary_compact),
+            "first_mismatch_index": mismatch_index,
+            "source_at_mismatch": source_compact[mismatch_index:mismatch_index + 12] if mismatch_index is not None else None,
+            "boundary_at_mismatch": boundary_compact[mismatch_index:mismatch_index + 12] if mismatch_index is not None else None,
         }
         offset += duration
 
