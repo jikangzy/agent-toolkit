@@ -255,8 +255,8 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(rate, "+0%")
         self.assertEqual(len(calls), len(data["scenes"]))
         self.assertEqual(durations["scene_001"], 1.25)
-        self.assertEqual(boundaries["scene_001"][0]["start_seconds"], 0.2)
-        self.assertEqual(boundaries["scene_001"][0]["end_seconds"], 0.6)
+        self.assertAlmostEqual(boundaries["scene_001"][0]["start_seconds"], 0.2)
+        self.assertAlmostEqual(boundaries["scene_001"][0]["end_seconds"], 0.6)
         self.assertEqual(boundaries["scene_001"][0]["text"], data["scenes"][0]["narration"])
         self.assertTrue((self.root/"audio/scene_001.mp3").is_file())
 
