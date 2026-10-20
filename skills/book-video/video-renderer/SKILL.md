@@ -81,6 +81,8 @@ python tools/book-video-renderer/renderer.py \
 
 Before enabling Edge TTS, disclose that narration text is sent to an external service and requires internet access. It is optional and has no availability guarantee. The preflight adjusts only a derived storyboard's scene durations to fit measured speech; the original narration and scene order remain unchanged. If synthesis fails, report the failure rather than claiming success or truncating narration. Generated video/audio/images/cache/font assets belong under ignored `output/` or `.local/runs/` directories or CI artifacts, never in source control. Subtitles currently use scene-proportional timing, not word-level forced alignment.
 
+If a local music asset is available and `music.enabled` is true in the storyboard, pass `--music-file <path>` to the renderer. It reads the default gain from `music.volume_db` (or accepts `--music-volume-db` between -60 and 0 dB), loops/trims the track to final duration, and mixes it below narration. Never claim music was generated if only a supplied file was used. If no track is available, omit the argument and ensure the manifest's music fallback is disclosed.
+
 ## Suggested local structure
 output/
   <run-id>/
