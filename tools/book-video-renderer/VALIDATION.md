@@ -5,7 +5,7 @@ Validation date: 2026-10-20 (Asia/Shanghai).
 ## Automated CI
 
 - The image-assets feature passed the full Python/FFmpeg integration suite: https://github.com/jikangzy/agent-toolkit/actions/runs/39344047019 (26 tests).
-- The narration-preflight feature passed the full Python/FFmpeg integration suite on main: https://github.com/jikangzy/agent-toolkit/actions/runs/39345986300 (28 tests).
+- The narration-preflight and source-path safety changes passed the full Python/FFmpeg integration suite on main: https://github.com/jikangzy/agent-toolkit/actions/runs/39346398793 (29 tests).
 - The Edge TTS MP3-padding fix passed the full suite: https://github.com/jikangzy/agent-toolkit/actions/runs/39343543818.
 - GitHub Actions uses Python 3.12 on Ubuntu with FFmpeg/ffprobe, libx264, libass and Noto CJK fonts.
 - The suite includes unit coverage for pure narration-duration allocation and pre-synthesized provider metadata. Live Edge TTS is intentionally not run by ordinary PR CI.
