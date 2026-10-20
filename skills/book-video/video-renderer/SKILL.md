@@ -23,7 +23,7 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
 ## Pipeline
 1. Validate storyboard JSON.
 2. Create an output directory and a manifest recording scene status.
-3. Generate narration audio. For multi-scene TTS, prefer `tools/book-video-renderer/prepare_narration.py`: it synthesizes each scene, measures the WAV duration, and creates a derived storyboard with scene timings extended only when needed. Keep the derived storyboard under `.local/runs/<run-id>/`, outside the renderer output directory, and never rewrite the source storyboard.
+3. Generate narration audio. Once images are ready, prefer `tools/book-video-renderer/pipeline.py` for one-command orchestration. It calls `prepare_narration.py`, measures speech duration, creates a derived storyboard, and then invokes the renderer. Keep derived storyboard/audio cache under `.local/runs/<run-id>/`, outside the renderer output directory, and never rewrite the source storyboard. The lower-level preflight script remains available for debugging.
 4. Obtain word/sentence timestamps from TTS where available; otherwise align from scene timings.
 5. Generate visual assets with the image-generation tool available in the current agent environment, if one is available:
    - Save each still as `<run-dir>/images/<scene_id>.png` (PNG, JPG/JPEG, or WebP are accepted).
@@ -59,7 +59,20 @@ python tools/book-video-renderer/renderer.py \
 
 Before rendering, generate and save per-scene images to `output/<run-id>/images/scene_001.png`, etc., if the agent's image-generation tool supports saving them. Do not commit those generated assets. Missing images are explicitly recorded as placeholder fallbacks.
 
-The default `--tts-provider none` is offline and produces no audio track. For multi-scene online Chinese narration, use the preflight workflow so speech is measured before video assembly:
+The default `--tts-provider none` is offline and produces no audio track. Once the per-scene images are ready, use this single command for measured Chinese TTS, aligned subtitles, optional local music, and final rendering:
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
+python tools/book-video-renderer/pipeline.py \\
+  examples/book-video/naval-test-001/storyboard.json \\
+  --output output/<run-id> \\
+  --assets-dir output/<run-id>/images \\
+  --tts-provider edge-tts \\
+  --tts-voice zh-CN-YunxiNeural \\
+  --music-file output/<run-id>/music.mp3
+```
+
+The pipeline does not generate images or music. Edge TTS is online and sends narration text to an external service. Per-scene MP3/WAV and word-boundary metadata are cached under `.local/runs/<run-id>/audio/`; unchanged scenes are reused, and `--force-tts` explicitly regenerates them. Remove `--music-file` when no local soundtrack is available, and disclose any manifest fallbacks. For lower-level debugging, the two-step preflight workflow remains available:
 
 ```bash
 python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
