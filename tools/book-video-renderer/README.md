@@ -95,6 +95,7 @@ python tools/book-video-renderer/prepare_narration.py \
   --audio-dir output/naval-test-001/audio \
   --derived-storyboard .local/runs/naval-test-001/storyboard.render.json \
   --timing-report output/naval-test-001/timing-report.json \
+  --subtitle-output output/naval-test-001/aligned-subtitles.srt \
   --voice zh-CN-YunxiNeural
 
 python tools/book-video-renderer/renderer.py \
@@ -103,12 +104,13 @@ python tools/book-video-renderer/renderer.py \
   --assets-dir output/naval-test-001/images \
   --tts-audio-dir output/naval-test-001/audio \
   --tts-audio-provider edge-tts \
-  --tts-audio-voice zh-CN-YunxiNeural
+  --tts-audio-voice zh-CN-YunxiNeural \
+  --subtitle-file output/naval-test-001/aligned-subtitles.srt
 ```
 
-The preflight script writes one MP3 and WAV per scene, measures WAV durations, adds a default 250 ms margin rounded to a video frame, and writes a timing report. The renderer records `speech_status: generated_audio`, the provider/voice, and the external-service notice in `manifest.json`. The `--tts-audio-provider` / `--tts-audio-voice` flags describe the source of the supplied WAVs; they do not trigger another network request.
+The preflight script writes one MP3 and WAV per scene, measures WAV durations, adds a default 250 ms margin rounded to a video frame, and writes a timing report plus `aligned-subtitles.srt`. When Edge TTS word-boundary metadata can be reconciled exactly with the original narration, captions are timed from those boundaries and grouped into short readable lines. If metadata text differs, that scene safely falls back to scene-proportional timing rather than altering the source narration. The renderer validates the SRT duration and burns it when passed `--subtitle-file`; without that argument, it uses its scene-proportional fallback. The renderer records `speech_status: generated_audio`, the provider/voice, subtitle alignment status, and the external-service notice in `manifest.json`. The `--tts-audio-provider` / `--tts-audio-voice` flags describe the source of supplied WAVs; they do not trigger another network request.
 
-**Important limitations:** Edge TTS is an online, third-party service, not an offline engine or a guaranteed production API. It requires network access and may change or throttle. Narration text is sent to that service. The provider is optional and replaceable; the default renderer still performs no TTS network calls. Subtitle timing remains scene-proportional in this iteration, so it is not yet word-level aligned to the generated audio.
+**Important limitations:** Edge TTS is an online, third-party service, not an offline engine or a guaranteed production API. It requires network access and may change or throttle. Narration text is sent to that service. The provider is optional and replaceable; the default renderer still performs no TTS network calls. Word-level timing depends on the external service returning usable metadata; fallback captions are still available.
 
 ### Render the sample in GitHub Actions (no local computer required)
 
