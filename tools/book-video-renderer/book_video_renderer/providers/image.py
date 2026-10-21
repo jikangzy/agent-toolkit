@@ -57,6 +57,36 @@ def draw_onscreen_text(image, scene, font_path):
     return image
 
 
+
+def create_text_overlay(scene, font_path, path):
+    """Create a transparent overlay with the exact storyboard onscreen_text."""
+    image = Image.new('RGBA', (WIDTH, HEIGHT), (0, 0, 0, 0))
+    if font_path is None:
+        image.save(path)
+        return path
+    draw = ImageDraw.Draw(image)
+    for size in range(58, 23, -2):
+        font = ImageFont.truetype(str(font_path), size)
+        lines = wrap(scene['onscreen_text'], font, WIDTH-240)
+        if len(lines) * (size+22) <= 650:
+            break
+    else:
+        raise RenderError('onscreen_text too long to fit without truncation')
+    y = 730 - len(lines) * (size+22) // 2
+    for line in lines:
+        draw.text(
+            ((WIDTH-font.getlength(line))/2, y),
+            line,
+            font=font,
+            fill=(255, 244, 219, 255),
+            stroke_width=max(2, size//18),
+            stroke_fill=(17, 24, 32, 255),
+        )
+        y += size+22
+    image.save(path)
+    return path
+
+
 def find_visual_asset(assets_dir, scene_id):
     if assets_dir is None:
         return None
