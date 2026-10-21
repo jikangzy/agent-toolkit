@@ -1,0 +1,40 @@
+{
+  "provider": "fal-minimax-h3-max-turbo",
+  "model": "minimax/h3-max-turbo/image-to-video",
+  "resolution": "768P",
+  "clip_seconds_requested": 5,
+  "estimated_uncached_clips": 2,
+  "cached_scene_ids": [],
+  "billable_scene_ids": [
+    "scene_002",
+    "scene_003"
+  ],
+  "estimated_cost_usd": 0.285,
+  "budget_usd": 0.4,
+  "cost_basis_usd_per_second": 0.025,
+  "estimate_includes_duration_overhead_seconds_per_clip": 0.7,
+  "status": "PROVISIONAL PROVIDER-ONLY PASS; FORMAL CLI FAILED",
+  "dynamic_scene_ids": [
+    "scene_002",
+    "scene_003"
+  ],
+  "cache_root": "E:\\agent-toolkit\\output\\naval-e2e\\two\\video-provider-cache",
+  "output_root": "E:\\agent-toolkit\\output\\naval-e2e\\two",
+  "input_fingerprints": {
+    "scene_002": "fd2b24b31a73b4c2799c1987234e2ee209e0056b4780065ef0bf6281272fce48",
+    "scene_003": "5882b6921b266c692bc447dd02c242a0fb7b65d8b42dd96aa0dd8b0bcfbdcf7e"
+  },
+  "prior_reserved_usd": 0,
+  "estimated_cost_per_clip_usd": 0.1425,
+  "estimated_pending_cost_usd": 0.285,
+  "total_reserved_and_pending_usd": 0.285,
+  "budget_check": "PASS",
+  "network_requests_made": 0,
+  "paid_requests_made": 0,
+  "images_uploaded": 0,
+  "guard": {
+    "network_attempts": 0,
+    "generation_attempts": 0
+  },
+  "fingerprint_policy": "CURRENT MAIN v1; MUST RECALCULATE after PR24 merge (v2), same cache root"
+}

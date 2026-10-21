@@ -1,0 +1,19 @@
+{
+  "base_main_sha": "04edeff096fec139880b5bcbe1fdf91663dc4ff4",
+  "capabilities": {
+    "cli_preflight_only": true,
+    "guarded_preflight_helper": false,
+    "request_ledger": false,
+    "paid_request_reservation": false,
+    "single_submit_boundary": false,
+    "full_ffmpeg_decode_qc": false,
+    "request_and_source_provenance": false,
+    "verify_real_media": false,
+    "formal_fixture_preexisted_on_main": false,
+    "run_report_on_main": false
+  },
+  "pr24_state": "OPEN",
+  "pr24_merge_commit": null,
+  "pr24_merged_at": null,
+  "formal_paid_readiness": "BLOCKED — PR #24 NOT MERGED"
+}

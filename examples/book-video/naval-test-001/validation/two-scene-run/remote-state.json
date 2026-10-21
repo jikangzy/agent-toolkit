@@ -1,0 +1,14 @@
+{
+  "pr24": {
+    "baseRefName": "main",
+    "headRefOid": "67137f24fc74695afa1a06eb5d8f85e469b12088",
+    "mergeCommit": null,
+    "mergedAt": null,
+    "state": "OPEN",
+    "url": "https://github.com/jikangzy/agent-toolkit/pull/24"
+  },
+  "main": {
+    "sha": "04edeff096fec139880b5bcbe1fdf91663dc4ff4",
+    "tree": "bf7a4f1438a7c962ad0d063e3cc110455c1cf2d8"
+  }
+}

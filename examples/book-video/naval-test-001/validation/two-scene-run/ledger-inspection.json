@@ -1,0 +1,17 @@
+{
+  "output_root": "E:\\agent-toolkit\\output\\naval-e2e\\two",
+  "cache_root": "E:\\agent-toolkit\\output\\naval-e2e\\two\\video-provider-cache",
+  "cache_root_exists": false,
+  "ledger_path": "E:\\agent-toolkit\\output\\naval-e2e\\two\\video-provider-cache\\request-ledger.json",
+  "ledger_exists": false,
+  "known_roots_scanned": [
+    "output",
+    ".local"
+  ],
+  "historical_ledgers": [],
+  "historical_locks": [],
+  "existing_uncertain_requests": [],
+  "prior_reserved_usd": 0,
+  "history_status": "NO LEDGER FOUND IN SCANNED REPOSITORY RUN ROOTS",
+  "cache_root_policy": "reuse prior planned output/naval-e2e/two; no new root to evade reservations"
+}

@@ -1,0 +1,26 @@
+{
+  "status": "BLOCKED — UNMERGED PRESERVED-ID VALIDATOR FIX",
+  "cli_arguments": [
+    "examples\\book-video\\naval-test-001\\validation\\two-scene-storyboard.json",
+    "--output",
+    "output\\naval-e2e\\two",
+    "--assets-dir",
+    "examples/book-video/naval-test-001/source-images",
+    "--ai-video-provider",
+    "fal-h3-max-turbo",
+    "--video-clip-seconds",
+    "5",
+    "--video-budget-usd",
+    "0.40",
+    "--video-preflight-only"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Pipeline failed: Invalid scene order: expected ['scene_001', 'scene_002'], got ['scene_002', 'scene_003']; scenes will not be reordered\n",
+  "guard": {
+    "network_attempts": 0,
+    "generation_attempts": 0
+  },
+  "network_requests_made": 0,
+  "paid_requests_made": 0
+}

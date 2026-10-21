@@ -105,3 +105,13 @@ After preserving the four newer upstream main commits (through `77bbd9b`), the
 complete suite passed **45 tests with zero skips** in 50.061 seconds. This includes
 the upstream punctuation-tolerant alignment regression. No renderer-package or
 Naval source content changed during that integration.
+
+
+## Current two-scene execution Gate (fresh main, not the unmerged PR)
+
+- LEVEL 1 — Code / CI: PR #24 safety repairs/tests/CI remain unmerged; fresh main 04edeff096fec139880b5bcbe1fdf91663dc4ff4 lacks them. Do not attribute its 86-test evidence to current main.
+- LEVEL 2 — Source / Preflight: two original PNGs and preserved-ID fixture PASS local integrity; actual formal CLI FAILS on old scene_001 start rule. Separate guarded Provider-only calculation PASS (.285/.40), not formal execution readiness. No full-eight preflight in this round.
+- LEVEL 3 — Two-Scene Real Motion: NOT RUN. BLOCKED — FAL_KEY MISSING; PR #24 NOT MERGED; explicit paid authorization NOT GRANTED.
+- LEVEL 4 — Full Eight-Scene Real Motion: NOT RUN, outside this round's scope.
+
+Only scene_002/003 were processed locally. No image upload, fal generation, external TTS or real render. Full evidence and exact errors: openspec/changes/real-media-e2e-validation/RUN_REPORT.md.

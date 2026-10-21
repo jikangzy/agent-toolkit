@@ -1,0 +1,49 @@
+{
+  "version": "0.1",
+  "title": "纳瓦尔宝典",
+  "author": "纳瓦尔·拉维坎特（埃里克·乔根森 编）",
+  "format": {
+    "aspect_ratio": "9:16",
+    "resolution": "1080x1920",
+    "target_duration_seconds": 23,
+    "fps": 30
+  },
+  "voice": {
+    "language": "zh-CN",
+    "style": "沉稳、自然、有思考感的知识类旁白，语速偏慢，留有呼吸感",
+    "speed": 1
+  },
+  "music": {
+    "enabled": true,
+    "style": "极简氛围钢琴，安静克制，适合思考型内容",
+    "volume_db": -24
+  },
+  "scenes": [
+    {
+      "id": "scene_002",
+      "duration_seconds": 10,
+      "narration": "这本书由埃里克·乔根森整理，收录了硅谷投资人纳瓦尔·拉维坎特十年的公开思考，只讲两件事：财富，和幸福。",
+      "visual": {
+        "type": "broll",
+        "prompt": "竖屏 9:16，一本关于财富与人生思考的书静置在木质书桌上，封面极简且不出现可读文字，旁边是一杯冒着热气的茶和一支钢笔。暖黄色台灯从侧面照亮桌面，浅景深，安静书房氛围，写实摄影风格，大面积干净留白。",
+        "negative_prompt": "清晰书名文字，品牌标识，logo，杂乱桌面，可识别人物面孔",
+        "motion": "slow pan right"
+      },
+      "onscreen_text": "十年公开思考，只讲两件事：财富与幸福",
+      "transition": "fade"
+    },
+    {
+      "id": "scene_003",
+      "duration_seconds": 13,
+      "narration": "第一个颠覆认知的区分是：金钱不等于财富。财富，是那些在你睡觉时仍然为你工作的资产；金钱，只是转移财富的社会工具。",
+      "visual": {
+        "type": "broll",
+        "prompt": "竖屏 9:16，概念性写实插画。左侧是一叠模糊、不带真实币种图案的纸张象征金钱，右侧是一棵在夜色中缓慢生长、枝叶散发微光的树，树根与远处城市建筑和数字网络连接，象征资产持续创造价值。深蓝夜色，极简对称构图。",
+        "negative_prompt": "真实货币细节，钞票文字，卡通贴纸，复杂背景，logo",
+        "motion": "slow zoom-in"
+      },
+      "onscreen_text": "金钱 ≠ 财富",
+      "transition": "cut"
+    }
+  ]
+}

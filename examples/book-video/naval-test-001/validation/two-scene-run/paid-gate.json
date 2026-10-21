@@ -1,0 +1,48 @@
+{
+  "title": "TWO-SCENE PAID GATE",
+  "status": "BLOCKED — FAL_KEY MISSING",
+  "main_sha": "04edeff096fec139880b5bcbe1fdf91663dc4ff4",
+  "work_branch": "run/naval-two-scene-real-media",
+  "work_branch_base_sha": "04edeff096fec139880b5bcbe1fdf91663dc4ff4",
+  "scenes": [
+    "scene_002",
+    "scene_003"
+  ],
+  "requested_duration_seconds_each": 5,
+  "maximum_submissions": 2,
+  "provider": "fal-minimax-h3-max-turbo",
+  "model": "minimax/h3-max-turbo/image-to-video",
+  "resolution": "768P",
+  "configured_estimate_per_clip_usd": 0.1425,
+  "estimated_pending_cost_usd": 0.285,
+  "prior_reserved_usd": 0,
+  "total_reserved_and_pending_usd": 0.285,
+  "hard_local_budget_cap_usd": 0.4,
+  "FAL_KEY": "missing",
+  "existing_valid_cache": [],
+  "existing_uncertain_requests": [],
+  "paid_requests_already_executed_in_this_run": 0,
+  "authorization": "NOT GRANTED",
+  "formal_cli_preflight": "BLOCKED — PR24 preserved-ID fix not merged; exit 1",
+  "provider_only_preflight": "PROVISIONAL PASS; not formal execution readiness",
+  "cache_root": "E:\\agent-toolkit\\output\\naval-e2e\\two\\video-provider-cache",
+  "input_fingerprints": {
+    "scene_002": "fd2b24b31a73b4c2799c1987234e2ee209e0056b4780065ef0bf6281272fce48",
+    "scene_003": "5882b6921b266c692bc447dd02c242a0fb7b65d8b42dd96aa0dd8b0bcfbdcf7e"
+  },
+  "network_generation_requests": 0,
+  "images_uploaded": 0,
+  "confirmed_actual_cost_usd": "unknown",
+  "actual_spend_basis": "No paid requests executed; no service bill queried",
+  "real_provider_outputs": "NOT RUN",
+  "renderer": "NOT RUN",
+  "real_visual_e2e": "NOT RUN",
+  "genuine_narration": "NOT RUN",
+  "NO_PAID_GENERATION_EXECUTED": true,
+  "blockers": [
+    "PR #24 OPEN / not merged",
+    "FAL_KEY MISSING",
+    "No explicit paid authorization"
+  ],
+  "post_merge_requirement": "Recreate fresh branch/input checks/preflight on merged main; preserve SAME cache root; recalculate v2 fingerprints; no automatic continuation or paid POST"
+}

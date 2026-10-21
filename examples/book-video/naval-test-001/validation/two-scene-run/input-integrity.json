@@ -1,0 +1,42 @@
+{
+  "base_main_sha": "04edeff096fec139880b5bcbe1fdf91663dc4ff4",
+  "work_branch": "run/naval-two-scene-real-media",
+  "scope": [
+    "scene_002",
+    "scene_003"
+  ],
+  "fixture_path": "examples/book-video/naval-test-001/validation/two-scene-storyboard.json",
+  "fixture_sha256": "994367db06caf6b0be54f7e2d1df8a819d76a1bdf23ad2a518bba699892fa1d3",
+  "original_storyboard_sha256": "e11bbfa91e8916c97246d3ccf924026024920488dacb49344a127b44085cc442",
+  "canonical_git_storyboard_sha256": "07212968552b55f488463f27c2bd2edd1f761958ac99423423fee7d939bbbb1f",
+  "source_unchanged": true,
+  "all_original_scene_fields_equal": true,
+  "derived_target_duration": 23,
+  "json_schema": "PASS",
+  "images": [
+    {
+      "scene_id": "scene_002",
+      "path": "examples/book-video/naval-test-001/source-images/scene_002.png",
+      "size_bytes": 1927237,
+      "sha256": "2de009f630da080d7413474057880c869d79114911fd72ca9de3100e0e28f61a",
+      "width": 941,
+      "height": 1672,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode_status": "PASS",
+      "main_blob_equal": true
+    },
+    {
+      "scene_id": "scene_003",
+      "path": "examples/book-video/naval-test-001/source-images/scene_003.png",
+      "size_bytes": 2233438,
+      "sha256": "6f3ef26a69e97f6c6f3cd4cddb31cfcba300f820320d408667c0eea34ea6ccbc",
+      "width": 941,
+      "height": 1672,
+      "mode": "RGB",
+      "format": "PNG",
+      "decode_status": "PASS",
+      "main_blob_equal": true
+    }
+  ]
+}
