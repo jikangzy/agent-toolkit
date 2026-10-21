@@ -195,7 +195,7 @@ def main():
     parser.add_argument("--margin-seconds", type=float, default=0.25)
     parser.add_argument("--music-file", type=Path, help="Optional local background music file")
     parser.add_argument("--music-volume-db", type=float, help="Override storyboard music gain (-60 to 0 dB)")
-    parser.add_argument("--subtitle-file", type=Path, help="Optional pre-aligned SRT; only valid with --tts-provider none")
+    parser.add_argument("--subtitle-file", type=Path, help="Optional pre-aligned SRT; valid with --tts-provider none or supplied")
     parser.add_argument("--work-dir", type=Path, help="Optional cache/work directory outside --output")
     args = parser.parse_args()
 
