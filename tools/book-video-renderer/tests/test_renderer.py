@@ -171,6 +171,37 @@ class UnitTests(unittest.TestCase):
         ]
         self.assertEqual("".join(cue_text), "".join(scene["narration"] for scene in data["scenes"]))
 
+    def test_aligned_srt_clamps_overlapping_word_boundary_cues(self):
+        data = fixture()
+        boundaries = {
+            "scene_001": [
+                {"start_seconds": 0.0, "end_seconds": 0.4, "text": "这是第"},
+                {"start_seconds": 0.395, "end_seconds": 0.8, "text": "1个场景。"},
+            ],
+        }
+        srt, report = prepare_narration.build_aligned_srt(data, boundaries, max_chars=3)
+        self.assertEqual(report["scene_001"]["alignment"], "word_boundary")
+        blocks = [block for block in srt.strip().split("\n\n\n") if block.strip()]
+
+        def seconds(stamp):
+            hours, minutes, rest = stamp.split(":")
+            seconds, millis = rest.split(",")
+            return int(hours) * 3600 + int(minutes) * 60 + int(seconds) + int(millis) / 1000
+
+        previous_end = 0.0
+        for block in blocks:
+            _, timing, *_ = block.splitlines()
+            start, end = (seconds(value) for value in timing.split(" --> "))
+            self.assertGreaterEqual(start, previous_end)
+            self.assertGreater(end, start)
+            previous_end = end
+
+        cue_text = [
+            line for line in srt.splitlines()
+            if line and not line.isdigit() and " --> " not in line
+        ]
+        self.assertEqual("".join(cue_text), "".join(scene["narration"] for scene in data["scenes"]))
+
     def test_external_srt_validation_checks_timestamps_and_video_duration(self):
         valid = self.root/'valid.srt'
         valid.write_text("1\n00:00:00,000 --> 00:00:01,000\n中文字幕\n", encoding="utf-8")
