@@ -16,7 +16,9 @@ def main():
     parser.add_argument('--storyboard', type=Path, dest='storyboard_option')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--font', help='CJK font covering all storyboard characters')
-    parser.add_argument('--assets-dir', type=Path, help='Optional directory of generated images named <scene_id>.png/.jpg/.jpeg/.webp')
+    parser.add_argument('--assets-dir', type=Path, help='Optional directory of still images named <scene_id>.png/.jpg/.jpeg/.webp')
+    parser.add_argument('--video-assets-dir', type=Path, help='Optional directory of real motion clips named <scene_id>.mp4/.mov/.mkv/.webm for video/broll scenes')
+    parser.add_argument('--require-video-assets', action='store_true', help='Fail if any video/broll scene has no real video clip; never silently replace it with a still image')
     parser.add_argument('--attempts', type=int, default=3)
     parser.add_argument('--tts-audio-dir', type=Path, help='Real narration WAV files named scene_001.wav, etc.')
     parser.add_argument('--tts-audio-provider', help='Provider label for pre-synthesized WAVs, e.g. edge-tts')
@@ -36,7 +38,8 @@ def main():
                         tts_voice=args.tts_voice, assets_dir=args.assets_dir,
                         speech_provider_name=args.tts_audio_provider, speech_voice=args.tts_audio_voice,
                         music_file=args.music_file, music_volume_db=args.music_volume_db,
-                        subtitle_file=args.subtitle_file)
+                        subtitle_file=args.subtitle_file, video_assets_dir=args.video_assets_dir,
+                        require_video_assets=args.require_video_assets)
         print(json.dumps({'status': result['status'], 'speech_status': result.get('speech_status'), 'tts_provider': result.get('tts_provider'), 'music': result.get('music'), 'subtitle_alignment': result.get('subtitle_alignment'), 'fallbacks': result['fallbacks'], 'provider_notes': result.get('provider_notes', []), 'qc': result['qc']}, ensure_ascii=False, indent=2))
     except Exception as exc:
         print(f'Render failed: {exc}', file=sys.stderr)
