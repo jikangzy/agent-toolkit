@@ -78,6 +78,24 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             font_path = None
             manifest['subtitles'] = {'status': 'failed', 'error': str(exc)}
             manifest['fallbacks'].append('Missing font: title overlays and subtitle burn-in unavailable; preserving unburned video and SRT.')
+        if provider is None:
+            if speech_dir and tts_provider != 'none':
+                raise RenderError('Use either --tts-audio-dir or --tts-provider edge-tts, not both')
+            if tts_voice and tts_provider != 'edge-tts':
+                raise RenderError('--tts-voice can only be used with --tts-provider edge-tts')
+            if (speech_provider_name or speech_voice) and not speech_dir:
+                raise RenderError('--tts-audio-provider/--tts-audio-voice require --tts-audio-dir')
+            if speech_voice and not speech_provider_name:
+                raise RenderError('--tts-audio-voice requires --tts-audio-provider')
+            if speech_dir:
+                provider = RecordedSpeech(
+                    speech_dir, data['scenes'],
+                    provider_name=speech_provider_name, voice_id=speech_voice
+                )
+            elif tts_provider == 'edge-tts':
+                provider = EdgeTTS(tts_voice)
+            else:
+                provider = NoTTS()
         video_assets = {}
         video_asset_info = {}
         if video_provider is not None:
@@ -114,24 +132,6 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 + ', '.join(missing_required_video)
             )
 
-        if provider is None:
-            if speech_dir and tts_provider != 'none':
-                raise RenderError('Use either --tts-audio-dir or --tts-provider edge-tts, not both')
-            if tts_voice and tts_provider != 'edge-tts':
-                raise RenderError('--tts-voice can only be used with --tts-provider edge-tts')
-            if (speech_provider_name or speech_voice) and not speech_dir:
-                raise RenderError('--tts-audio-provider/--tts-audio-voice require --tts-audio-dir')
-            if speech_voice and not speech_provider_name:
-                raise RenderError('--tts-audio-voice requires --tts-audio-provider')
-            if speech_dir:
-                provider = RecordedSpeech(
-                    speech_dir, data['scenes'],
-                    provider_name=speech_provider_name, voice_id=speech_voice
-                )
-            elif tts_provider == 'edge-tts':
-                provider = EdgeTTS(tts_voice)
-            else:
-                provider = NoTTS()
         manifest.update(storyboard_sha256=source_hash, scene_order=[s['id'] for s in data['scenes']],
                         font=str(font_path) if font_path else None, tts_provider=getattr(provider, 'provider_name', type(provider).__name__),
                         tts_voice=getattr(provider, 'voice_id', None),
