@@ -174,10 +174,14 @@ The renderer can now ingest actual motion clips for storyboard scenes whose `vis
 
 ```text
 output/naval-test-001/videos/
+  scene_002.mp4
   scene_003.mp4
   scene_004.mp4
   scene_005.mp4
-  ...
+  scene_006.mp4
+  scene_007.mp4
+  scene_008.mp4
+  scene_009.mp4
 ```
 
 Supported input extensions are MP4, MOV, M4V, MKV, and WebM. Then render with:
@@ -220,14 +224,14 @@ python tools/book-video-renderer/pipeline.py \
   --output output/naval-test-001 \
   --assets-dir output/naval-test-001/images \
   --ai-video-provider fal-h3-max-turbo \
-  --video-clip-seconds 5 \
-  --video-budget-usd 1.00 \
+  --video-clip-seconds 10 \
+  --video-budget-usd 2.50 \
   --music-file output/naval-test-001/music.mp3
 ```
 
 The initial adapter supports 5- or 10-second clips at 768P. The renderer loops/trims each generated clip to its storyboard scene duration. The adapter checks that every `video`/`broll` scene has an image, estimates spend for uncached clips (including a 0.7-second duration allowance), and aborts before making any paid request if the estimate exceeds `--video-budget-usd`. Completed clips are cached under `output/<run-id>/video-provider-cache/`; unchanged clips are reused on reruns. The manifest records the model, estimated spend, budget, and which scenes were cached or requested.
 
-The current public list price for H3 Max Turbo is approximately $0.025 per generated second; prices and actual billing may change. For six uncached clips at 5 seconds each, the conservative estimate is about $0.86. This is an estimate, not a billing guarantee. Selecting this provider uploads scene images and visual prompts to fal.ai and can incur charges. The default provider remains `none`; no network request occurs unless you explicitly select `--ai-video-provider fal-h3-max-turbo`.
+The current public list price for H3 Max Turbo is approximately $0.025 per generated second; prices and actual billing may change. For eight uncached clips at 10 seconds each, the conservative estimate is about $2.14. This is an estimate, not a billing guarantee. Selecting this provider uploads scene images and visual prompts to fal.ai and can incur charges. The default provider remains `none`; no network request occurs unless you explicitly select `--ai-video-provider fal-h3-max-turbo`.
 
 
 ### Optional background music
