@@ -14,10 +14,11 @@ from .subtitle import subtitles, validate_subtitle_file
 from .qc import verify_video
 from .scene import encode_scene
 from .providers.image import find_visual_asset
+from .providers.video import SuppliedVideoProvider, validate_video_asset
 from .providers.music import resolve_music
 from .providers.tts import NoTTS, RecordedSpeech, EdgeTTS
 
-def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None, speech_provider_name=None, speech_voice=None, music_file=None, music_volume_db=None, subtitle_file=None):
+def render(source, output, font=None, attempts=3, provider=None, speech_dir=None, tts_provider='none', tts_voice=None, assets_dir=None, speech_provider_name=None, speech_voice=None, music_file=None, music_volume_db=None, subtitle_file=None, video_assets_dir=None, require_video_assets=False, video_provider=None):
     if attempts < 1 or attempts > 10:
         raise RenderError('attempts must be between 1 and 10')
     source, output = Path(source).resolve(), Path(output).resolve()
@@ -55,6 +56,13 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         subtitle_info = validate_subtitle_file(subtitle_path, target_duration) if subtitle_path else None
         if assets_dir is not None and not assets_dir.is_dir():
             raise RenderError(f'Visual assets directory does not exist: {assets_dir}')
+        if video_assets_dir is not None:
+            video_assets_dir = Path(video_assets_dir).expanduser().resolve()
+            if video_provider is not None:
+                raise RenderError('Use either --video-assets-dir or a programmatic video_provider, not both')
+            video_provider = SuppliedVideoProvider(video_assets_dir)
+        if require_video_assets and video_provider is None:
+            raise RenderError('--require-video-assets requires --video-assets-dir or a video_provider')
         visual_assets = {
             scene['id']: find_visual_asset(assets_dir, scene['id'])
             for scene in data['scenes']
@@ -88,12 +96,54 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 provider = EdgeTTS(tts_voice)
             else:
                 provider = NoTTS()
+        video_assets = {}
+        video_asset_info = {}
+        if video_provider is not None:
+            for scene in data['scenes']:
+                # b-roll/video scenes are the explicit dynamic-footage boundary.
+                if scene['visual']['type'] not in ('video', 'broll'):
+                    video_assets[scene['id']] = None
+                    video_asset_info[scene['id']] = None
+                    continue
+                asset = video_provider.get_or_generate_video(
+                    scene, frame_count(scene) / FPS,
+                    output/'video-provider-cache'/scene['id']
+                )
+                if asset is not None:
+                    asset = Path(asset).expanduser().resolve()
+                    info = validate_video_asset(asset)
+                    video_assets[scene['id']] = asset
+                    video_asset_info[scene['id']] = info
+                else:
+                    video_assets[scene['id']] = None
+                    video_asset_info[scene['id']] = None
+        else:
+            video_assets = {scene['id']: None for scene in data['scenes']}
+            video_asset_info = {scene['id']: None for scene in data['scenes']}
+
+        missing_required_video = [
+            scene['id'] for scene in data['scenes']
+            if scene['visual']['type'] in ('video', 'broll')
+            and video_assets[scene['id']] is None
+        ]
+        if require_video_assets and missing_required_video:
+            raise RenderError(
+                'Missing required video clips for video/broll scenes: '
+                + ', '.join(missing_required_video)
+            )
+
         manifest.update(storyboard_sha256=source_hash, scene_order=[s['id'] for s in data['scenes']],
                         font=str(font_path) if font_path else None, tts_provider=getattr(provider, 'provider_name', type(provider).__name__),
                         tts_voice=getattr(provider, 'voice_id', None),
                         speech_status=getattr(provider, 'speech_status', 'provided_audio'),
-                        visual_assets_supplied=assets_dir is not None)
-        missing_assets = [scene['id'] for scene in data['scenes'] if visual_assets[scene['id']] is None]
+                        visual_assets_supplied=assets_dir is not None,
+                        video_provider=getattr(video_provider, 'provider_name', None),
+                        video_assets_supplied=video_provider is not None,
+                        require_video_assets=require_video_assets)
+        missing_assets = [
+            scene['id'] for scene in data['scenes']
+            if visual_assets[scene['id']] is None and video_assets[scene['id']] is None
+        ]
         manifest['visual_assets'] = {
             scene['id']: ({
                 'file': visual_assets[scene['id']].name,
@@ -101,10 +151,42 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             } if visual_assets[scene['id']] is not None else None)
             for scene in data['scenes']
         }
+        manifest['video_assets'] = {
+            scene['id']: ({
+                **video_asset_info[scene['id']],
+                'file': Path(video_asset_info[scene['id']]['path']).name,
+                'sha256': digest(video_assets[scene['id']]),
+            } if video_assets[scene['id']] is not None else None)
+            for scene in data['scenes']
+        }
         if missing_assets:
             manifest['fallbacks'].append(
-                'Program-generated placeholder visuals used for scenes without supplied assets: '
+                'Program-generated placeholder visuals used for scenes without supplied image or video assets: '
                 + ', '.join(missing_assets)
+            )
+        video_scene_ids = [
+            scene['id'] for scene in data['scenes']
+            if scene['visual']['type'] in ('video', 'broll')
+        ]
+        missing_video_scenes = [
+            scene_id for scene_id in video_scene_ids if video_assets[scene_id] is None
+        ]
+        manifest['video_coverage'] = {
+            'eligible_scene_count': len(video_scene_ids),
+            'clips_supplied': len(video_scene_ids) - len(missing_video_scenes),
+            'missing_clip_scene_ids': missing_video_scenes,
+            'required': bool(require_video_assets),
+        }
+        if missing_video_scenes:
+            manifest['fallbacks'].append(
+                'Static image/placeholder fallback used for video/broll scenes without real motion clips: '
+                + ', '.join(missing_video_scenes)
+            )
+        if video_provider is not None:
+            manifest['provider_notes'] = manifest.get('provider_notes', [])
+            manifest['provider_notes'].append(
+                'Supplied video clips are normalized to 1080x1920/30fps; source-clip audio is discarded. '
+                'Narration and optional background music are mixed separately.'
             )
         if subtitle_info:
             manifest['subtitle_alignment'] = {
@@ -145,20 +227,29 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         cache.mkdir(exist_ok=True)
         settings = {'version': VERSION, 'implementation': fingerprint({str(p.relative_to(Path(__file__).parent)): digest(p) for p in sorted(Path(__file__).parent.rglob('*.py'))}), 'font': digest(font_path) if font_path else None,
                     'tts': provider.cache_key, 'voice': data['voice'], 'ffmpeg': command(['ffmpeg', '-version']).splitlines()[0],
-                    'assets_dir_supplied': assets_dir is not None}
+                    'assets_dir_supplied': assets_dir is not None,
+                    'video_provider': getattr(video_provider, 'cache_key', None)}
         clips, audio_flags = [], []
         for index, scene in enumerate(data['scenes']):
             visual_asset = visual_assets[scene['id']]
+            video_asset = video_assets[scene['id']]
+            video_asset_sha = digest(video_asset) if video_asset is not None else None
             visual_asset_sha = digest(visual_asset) if visual_asset is not None else None
+            effective_visual_sha = video_asset_sha or visual_asset_sha or 'placeholder-v1'
             entry = {**manifest['scenes'][index], 'id': scene['id'], 'status': 'pending', 'attempts': 0, 'errors': [],
-                     'visual_type': scene['visual']['type'], 'placeholder': visual_asset is None,
+                     'visual_type': scene['visual']['type'],
+                     'placeholder': visual_asset is None and video_asset is None,
+                     'visual_source': 'video' if video_asset is not None else ('image' if visual_asset is not None else 'placeholder'),
                      'visual_asset': visual_asset.name if visual_asset is not None else None,
                      'visual_asset_sha256': visual_asset_sha,
+                     'video_asset': video_asset.name if video_asset is not None else None,
+                     'video_asset_path': str(video_asset) if video_asset is not None else None,
+                     'video_asset_sha256': video_asset_sha,
                      'motion_requested': scene['visual'].get('motion'), 'transition_requested': scene.get('transition', 'cut'),
                      'narration': scene['narration'], 'onscreen_text': scene['onscreen_text']}
             manifest['scenes'][index] = entry
             save_json(manifest_path, manifest)
-            input_hash = fingerprint([scene, settings, visual_asset_sha or 'placeholder-v1'])
+            input_hash = fingerprint([scene, settings, effective_visual_sha])
             entry['input_hash'] = input_hash
             old = next((e for e in previous.get('scenes', []) if e['id'] == scene['id'] and e.get('input_hash') == input_hash), {})
             entry['retry_count'] = old.get('retry_count', 0)
@@ -178,9 +269,11 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 entry['attempts_total'] += 1
                 entry['status'] = 'rendering'
                 save_json(manifest_path, manifest)
-                clip, audio = encode_scene(scene, data, font_path, work, provider, visual_asset)
+                clip, audio = encode_scene(scene, data, font_path, work, provider, visual_asset, video_asset)
                 speech = json.loads((work/'speech.json').read_text(encoding='utf-8'))
                 assets = [work/'visual.png']
+                if video_asset is not None:
+                    assets.append(video_asset)
                 if speech['audio_path']:
                     assets.append(Path(speech['audio_path']))
                 save_json(meta, {'sha256': digest(clip), 'audio': audio,

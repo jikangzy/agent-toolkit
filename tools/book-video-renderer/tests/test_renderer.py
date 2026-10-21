@@ -583,6 +583,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(first['scene_order'], [s['id'] for s in data['scenes']])
         self.assertEqual(first['qc']['duration_seconds'], 15)
         self.assertIsNone(first['qc']['audio_codec'])
+        self.assertTrue(any('Static image/placeholder fallback used for video/broll scenes' in item for item in first['fallbacks']))
         self.assertEqual(len(list((output/'scenes').glob('*.mp4'))), 5)
         self.assertTrue((output/'subtitles.srt').is_file())
         second = r.render(source, output, FONT)

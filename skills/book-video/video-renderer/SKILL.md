@@ -30,9 +30,10 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
    - Follow the scene's `visual.prompt` and `negative_prompt`; prefer vertical 9:16, no text/logos/watermarks, and a centered subject that can survive center-cropping.
    - Never ask the image model to write the title/subtitles into the image; the renderer overlays the exact storyboard `onscreen_text`.
    - If the current environment cannot generate or save images, do not claim that it did; continue with labeled placeholders and report the limitation.
-   - AI video generation is not implemented in the current CLI; use still images with gentle pan/zoom for now.
-6. Normalize supplied assets to 1080x1920; missing assets fall back to labeled placeholders and are listed in the manifest.
-7. Render one MP4 per scene, passing `--assets-dir <run-dir>/images`.
+   - For scenes with `visual.type` `video` or `broll`, generate or obtain real MP4/MOV/WebM clips when a video-capable provider is available. Save them as `<run-dir>/videos/<scene_id>.mp4`.
+   - The CLI ingests real clips but does not call an AI video API yet. If no real clips are available, use stills only when explicitly acceptable and disclose the fallback.
+6. Normalize stills to 1080x1920; normalize supplied motion clips to 1080x1920/30fps, overlay the exact `onscreen_text`, and strip source-clip audio so narration/music remain separate. Missing assets are recorded in the manifest.
+7. Render one MP4 per scene, passing `--assets-dir <run-dir>/images` and `--video-assets-dir <run-dir>/videos`. For production runs, add `--require-video-assets` so any missing `video`/`broll` clip fails instead of silently falling back.
 8. Concatenate all scenes in storyboard order.
 9. Add narration, optional background music, and subtitles.
 10. Run QC:
@@ -45,7 +46,7 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
 
 ## Current repository MVP
 
-The checked-in CLI accepts optional **agent-generated still images** via `--assets-dir` and renders them with gentle pan/zoom. It does not call an image-generation API itself; if image assets are unavailable, it uses clearly labeled placeholders. AI video clips and automatic background-music generation are not implemented. It can optionally synthesize real Chinese narration through Edge TTS. Do not describe a default no-audio render as a finished narrated video.
+The checked-in CLI accepts agent-generated stills via `--assets-dir` and real motion clips via `--video-assets-dir`. It normalizes clips, overlays exact storyboard text, and records per-scene `visual_source` in the manifest. `--require-video-assets` fails closed if any `video`/`broll` scene lacks a valid clip. The CLI does not itself call an image- or AI-video-generation API, and it does not generate background music. It can optionally synthesize real Chinese narration through Edge TTS. Do not describe a default no-audio render as a finished narrated video.
 
 Run commands from the repository root:
 
@@ -57,7 +58,7 @@ python tools/book-video-renderer/renderer.py \
   --assets-dir output/<run-id>/images
 ```
 
-Before rendering, generate and save per-scene images to `output/<run-id>/images/scene_001.png`, etc., if the agent's image-generation tool supports saving them. Do not commit those generated assets. Missing images are explicitly recorded as placeholder fallbacks.
+Before rendering, save per-scene images to `output/<run-id>/images/scene_001.png`, etc., and real motion clips for every `video`/`broll` scene to `output/<run-id>/videos/scene_003.mp4`, etc. Do not commit generated assets. Use `--require-video-assets` for production so missing motion clips are a hard failure rather than a silent still-image fallback. The `video` provider currently ingests supplied files; a real AI-video service adapter remains future work.
 
 The default `--tts-provider none` is offline and produces no audio track. Once the per-scene images are ready, use this single command for measured Chinese TTS, aligned subtitles, optional local music, and final rendering:
 
@@ -67,6 +68,8 @@ python tools/book-video-renderer/pipeline.py \
   examples/book-video/naval-test-001/storyboard.json \
   --output output/<run-id> \
   --assets-dir output/<run-id>/images \
+  --video-assets-dir output/<run-id>/videos \
+  --require-video-assets \
   --tts-provider edge-tts \
   --tts-voice zh-CN-YunxiNeural \
   --music-file output/<run-id>/music.mp3
@@ -88,6 +91,8 @@ python tools/book-video-renderer/renderer.py \
   .local/runs/<run-id>/storyboard.render.json \
   --output output/<run-id> \
   --assets-dir output/<run-id>/images \
+  --video-assets-dir output/<run-id>/videos \
+  --require-video-assets \
   --tts-audio-dir output/<run-id>/audio \
   --tts-audio-provider edge-tts \
   --tts-audio-voice zh-CN-YunxiNeural \

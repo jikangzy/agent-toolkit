@@ -21,6 +21,8 @@ def run_pipeline(
     font=None,
     attempts=3,
     assets_dir=None,
+    video_assets_dir=None,
+    require_video_assets=False,
     tts_provider="none",
     tts_voice="zh-CN-YunxiNeural",
     tts_audio_dir=None,
@@ -37,6 +39,7 @@ def run_pipeline(
     source = Path(storyboard).expanduser().resolve()
     output = Path(output).expanduser().resolve()
     assets_dir = Path(assets_dir).expanduser().resolve() if assets_dir is not None else None
+    video_assets_dir = Path(video_assets_dir).expanduser().resolve() if video_assets_dir is not None else None
     music_file = Path(music_file).expanduser().resolve() if music_file is not None else None
     subtitle_file = Path(subtitle_file).expanduser().resolve() if subtitle_file is not None else None
     tts_audio_dir = Path(tts_audio_dir).expanduser().resolve() if tts_audio_dir is not None else None
@@ -61,6 +64,8 @@ def run_pipeline(
             font,
             attempts,
             assets_dir=assets_dir,
+            video_assets_dir=video_assets_dir,
+            require_video_assets=require_video_assets,
             music_file=music_file,
             music_volume_db=music_volume_db,
             subtitle_file=subtitle_file,
@@ -125,6 +130,8 @@ def run_pipeline(
             speech_dir=tts_audio_dir,
             tts_provider="none",
             assets_dir=assets_dir,
+            video_assets_dir=video_assets_dir,
+            require_video_assets=require_video_assets,
             speech_provider_name=tts_audio_provider or "supplied-audio",
             speech_voice=tts_audio_voice,
             music_file=music_file,
@@ -154,6 +161,8 @@ def run_pipeline(
         speech_dir=audio_dir,
         tts_provider="none",
         assets_dir=assets_dir,
+        video_assets_dir=video_assets_dir,
+        require_video_assets=require_video_assets,
         speech_provider_name="edge-tts",
         speech_voice=voice_id,
         music_file=music_file,
@@ -170,6 +179,8 @@ def main():
     parser.add_argument("--font", help="CJK font covering all storyboard characters")
     parser.add_argument("--attempts", type=int, default=3)
     parser.add_argument("--assets-dir", type=Path, help="Generated stills named <scene_id>.png/.jpg/.jpeg/.webp")
+    parser.add_argument("--video-assets-dir", type=Path, help="Real motion clips named <scene_id>.mp4/.mov/.mkv/.webm for video/broll scenes")
+    parser.add_argument("--require-video-assets", action="store_true", help="Fail if any video/broll scene lacks a real video clip")
     parser.add_argument(
         "--tts-provider",
         choices=("none", "edge-tts", "supplied"),
@@ -184,7 +195,7 @@ def main():
     parser.add_argument("--margin-seconds", type=float, default=0.25)
     parser.add_argument("--music-file", type=Path, help="Optional local background music file")
     parser.add_argument("--music-volume-db", type=float, help="Override storyboard music gain (-60 to 0 dB)")
-    parser.add_argument("--subtitle-file", type=Path, help="Optional pre-aligned SRT; only valid with --tts-provider none")
+    parser.add_argument("--subtitle-file", type=Path, help="Optional pre-aligned SRT; valid with --tts-provider none or supplied")
     parser.add_argument("--work-dir", type=Path, help="Optional cache/work directory outside --output")
     args = parser.parse_args()
 
@@ -195,6 +206,8 @@ def main():
             font=args.font,
             attempts=args.attempts,
             assets_dir=args.assets_dir,
+            video_assets_dir=args.video_assets_dir,
+            require_video_assets=args.require_video_assets,
             tts_provider=args.tts_provider,
             tts_voice=args.tts_voice,
             tts_audio_dir=args.tts_audio_dir,

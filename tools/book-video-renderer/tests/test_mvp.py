@@ -181,6 +181,92 @@ class MVPTests(unittest.TestCase):
         self.assertEqual(source.read_bytes(), original)
 
 
+    def test_real_video_assets_render_as_motion_footage_and_invalidate_only_the_changed_scene(self):
+        data = fixture()
+        source = self.source(data)
+        original = source.read_bytes()
+        output = self.root/'video-output'
+        images = self.root/'images'
+        videos = self.root/'videos'
+        images.mkdir()
+        videos.mkdir()
+
+        for index, scene in enumerate(data['scenes']):
+            Image.new('RGB', (320, 568), (30 + index * 20, 60, 100)).save(
+                images/(scene['id'] + '.png')
+            )
+
+        for scene_id in ('scene_003', 'scene_004'):
+            engine.command([
+                'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+                '-f', 'lavfi', '-i', 'testsrc2=size=360x640:rate=24:duration=1',
+                '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+                videos/(scene_id + '.mp4')
+            ])
+
+        first = render(
+            source, output, FONT, attempts=1, assets_dir=images,
+            video_assets_dir=videos, require_video_assets=True,
+        )
+        self.assertEqual(first['overall_status'], 'completed')
+        self.assertEqual(first['scenes'][0]['visual_source'], 'image')
+        self.assertEqual(first['scenes'][1]['visual_source'], 'image')
+        self.assertEqual(first['scenes'][2]['visual_source'], 'video')
+        self.assertEqual(first['scenes'][3]['visual_source'], 'video')
+        self.assertEqual(first['scenes'][4]['visual_source'], 'image')
+        self.assertFalse(first['scenes'][2]['placeholder'])
+        self.assertFalse(first['scenes'][3]['placeholder'])
+        self.assertEqual(first['video_provider'], 'supplied-video')
+        self.assertEqual(first['video_assets']['scene_003']['duration_seconds'], 1.0)
+        self.assertEqual(first['qc']['scene_count'], 5)
+        self.assertFalse(any('Program-generated placeholder visuals' in item for item in first['fallbacks']))
+        subprocess.run(
+            ['ffmpeg', '-v', 'error', '-i', str(output/'final.mp4'), '-f', 'null', '-'],
+            check=True,
+        )
+
+        second = render(
+            source, output, FONT, attempts=1, assets_dir=images,
+            video_assets_dir=videos, require_video_assets=True,
+        )
+        self.assertTrue(all(scene['cache_hit'] for scene in second['scenes']))
+
+        # Replacing one source clip invalidates only its scene's cached render.
+        engine.command([
+            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+            '-f', 'lavfi', '-i', 'testsrc=size=360x640:rate=24:duration=1',
+            '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+            videos/'scene_003.mp4'
+        ])
+        third = render(
+            source, output, FONT, attempts=1, assets_dir=images,
+            video_assets_dir=videos, require_video_assets=True,
+        )
+        self.assertFalse(third['scenes'][2]['cache_hit'])
+        self.assertTrue(all(third['scenes'][i]['cache_hit'] for i in (0, 1, 3, 4)))
+        self.assertEqual(source.read_bytes(), original)
+
+    def test_require_video_assets_fails_closed_for_missing_broll(self):
+        data = fixture()
+        source = self.source(data)
+        videos = self.root/'incomplete-videos'
+        videos.mkdir()
+        engine.command([
+            'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+            '-f', 'lavfi', '-i', 'testsrc2=size=360x640:rate=24:duration=1',
+            '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+            videos/'scene_004.mp4'
+        ])
+        with self.assertRaisesRegex(RenderError, 'scene_003'):
+            render(
+                source, self.root/'strict-output', FONT, attempts=1,
+                video_assets_dir=videos, require_video_assets=True,
+            )
+        manifest = json.loads((self.root/'strict-output/manifest.json').read_text())
+        self.assertEqual(manifest['overall_status'], 'failed')
+        self.assertIn('Missing required video clips', manifest['error'])
+
+
 class RecoveryTests(unittest.TestCase):
     setUp = MVPTests.setUp
     source = MVPTests.source

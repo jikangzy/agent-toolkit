@@ -91,6 +91,15 @@ def normalize_image_asset(source, destination):
         raise RenderError(f'Cannot load visual asset {source}: {exc}') from exc
 
 
+def prepare_text_overlay(scene, font_path, destination):
+    """Create a transparent overlay carrying the storyboard's exact on-screen text."""
+    image = Image.new('RGBA', (WIDTH, HEIGHT), (0, 0, 0, 0))
+    if font_path is not None:
+        image = draw_onscreen_text(image, scene, font_path)
+    image.save(destination, format='PNG')
+    return destination
+
+
 def prepare_visual(scene, font_path, destination, visual_asset=None):
     if visual_asset is None:
         if scene['visual']['type'] in ('video', 'broll'):
