@@ -313,6 +313,19 @@ def build_aligned_srt(storyboard, boundaries_by_scene, max_chars=16, max_duratio
         }
         offset += duration
 
+    # Word-boundary timestamps from remote TTS can overlap by a few milliseconds.
+    # Keep captions ordered and non-overlapping after grouping, without changing text.
+    for index in range(1, len(entries)):
+        previous = entries[index - 1]
+        current = entries[index]
+        if current["start"] < previous["end"]:
+            if current["start"] - previous["start"] >= 0.08:
+                previous["end"] = current["start"]
+            else:
+                current["start"] = previous["end"]
+                if current["end"] <= current["start"]:
+                    current["end"] = current["start"] + 0.08
+
     srt = "\n\n".join(
         f"{index}\n{renderer.stamp(entry['start'])} --> {renderer.stamp(entry['end'])}\n{entry['text']}\n"
         for index, entry in enumerate(entries, 1)
