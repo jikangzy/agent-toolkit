@@ -197,7 +197,7 @@ class MVPTests(unittest.TestCase):
             )
 
         for scene_id in ('scene_003', 'scene_004'):
-            r.command([
+            engine.command([
                 'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
                 '-f', 'lavfi', '-i', 'testsrc2=size=360x640:rate=24:duration=1',
                 '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
@@ -232,7 +232,7 @@ class MVPTests(unittest.TestCase):
         self.assertTrue(all(scene['cache_hit'] for scene in second['scenes']))
 
         # Replacing one source clip invalidates only its scene's cached render.
-        r.command([
+        engine.command([
             'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
             '-f', 'lavfi', '-i', 'testsrc=size=360x640:rate=24:duration=1',
             '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
@@ -251,7 +251,7 @@ class MVPTests(unittest.TestCase):
         source = self.source(data)
         videos = self.root/'incomplete-videos'
         videos.mkdir()
-        r.command([
+        engine.command([
             'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
             '-f', 'lavfi', '-i', 'testsrc2=size=360x640:rate=24:duration=1',
             '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
