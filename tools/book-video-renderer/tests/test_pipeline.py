@@ -81,6 +81,91 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(render_kwargs["subtitle_file"], output.resolve() / "aligned-subtitles.srt")
         self.assertEqual(result["narration_preflight"], preflight)
 
+    def test_supplied_audio_mode_derives_timing_and_renders_without_network_tts(self):
+        output = self.root / "output"
+        work_dir = self.root / ".local" / "runs" / "supplied"
+        audio_dir = self.root / "audio"
+        audio_dir.mkdir()
+        for scene_id in ("scene_001", "scene_002"):
+            (audio_dir / f"{scene_id}.wav").write_bytes(b"wav")
+        subtitle = self.root / "aligned.srt"
+        subtitle.write_text("1\n00:00:00,000 --> 00:00:01,000\n字幕\n", encoding="utf-8")
+
+        data = {
+            "format": {"target_duration_seconds": 6, "fps": 30},
+            "music": {"enabled": False, "volume_db": -24},
+            "voice": {"speed": 1.0},
+            "scenes": [
+                {"id": "scene_001", "duration_seconds": 3, "narration": "一", "onscreen_text": "一"},
+                {"id": "scene_002", "duration_seconds": 3, "narration": "二", "onscreen_text": "二"},
+            ],
+        }
+        derived = {
+            **data,
+            "format": {"target_duration_seconds": 7, "fps": 30},
+            "scenes": [
+                {**data["scenes"][0], "duration_seconds": 3.5},
+                {**data["scenes"][1], "duration_seconds": 3.5},
+            ],
+        }
+        scene_report = {
+            "scene_001": {"speech_seconds": 3.2, "original_scene_seconds": 3, "allocated_scene_seconds": 3.5},
+            "scene_002": {"speech_seconds": 3.2, "original_scene_seconds": 3, "allocated_scene_seconds": 3.5},
+        }
+        with patch.object(pipeline.renderer, "load_storyboard", return_value=data), patch.object(
+            pipeline.renderer, "resolve_music", return_value=(None, None)
+        ), patch.object(
+            pipeline.renderer, "probe",
+            return_value={"streams": [{"codec_type": "audio"}], "format": {"duration": "3.2"}},
+        ), patch.object(
+            pipeline.prepare_narration, "allocate_scene_durations", return_value=(derived, scene_report)
+        ) as allocate, patch.object(
+            pipeline.renderer, "save_json"
+        ) as save_json, patch.object(
+            pipeline.renderer, "render", return_value=self.manifest
+        ) as render, patch.object(
+            pipeline.prepare_narration, "prepare"
+        ) as online_prepare:
+            result = pipeline.run_pipeline(
+                EXAMPLE,
+                output,
+                tts_provider="supplied",
+                tts_audio_dir=audio_dir,
+                tts_audio_provider="edge-tts",
+                tts_audio_voice="zh-CN-YunxiNeural",
+                subtitle_file=subtitle,
+                work_dir=work_dir,
+            )
+
+        online_prepare.assert_not_called()
+        allocate.assert_called_once()
+        self.assertEqual(allocate.call_args.args[1], {"scene_001": 3.2, "scene_002": 3.2})
+        self.assertEqual(save_json.call_args_list[0].args[0], work_dir.resolve() / "storyboard.render.json")
+        self.assertEqual(save_json.call_args_list[1].args[0], output.resolve() / "timing-report.json")
+
+        render_args, render_kwargs = render.call_args
+        self.assertEqual(render_args[0], work_dir.resolve() / "storyboard.render.json")
+        self.assertEqual(render_kwargs["speech_dir"], audio_dir.resolve())
+        self.assertEqual(render_kwargs["speech_provider_name"], "edge-tts")
+        self.assertEqual(render_kwargs["speech_voice"], "zh-CN-YunxiNeural")
+        self.assertEqual(render_kwargs["subtitle_file"], subtitle.resolve())
+        self.assertEqual(result["narration_preflight"]["audio_cache"]["scene_001"], "supplied")
+
+    def test_supplied_audio_requires_existing_complete_wav_directory(self):
+        with self.assertRaisesRegex(pipeline.renderer.RenderError, "--tts-provider supplied requires"):
+            pipeline.run_pipeline(
+                EXAMPLE, self.root / "output", tts_provider="supplied"
+            )
+
+        missing_dir = self.root / "missing-audio"
+        with self.assertRaisesRegex(pipeline.renderer.RenderError, "does not exist"):
+            pipeline.run_pipeline(
+                EXAMPLE,
+                self.root / "output",
+                tts_provider="supplied",
+                tts_audio_dir=missing_dir,
+            )
+
     def test_invalid_music_fails_before_any_external_tts_request(self):
         with patch.object(pipeline.prepare_narration, "prepare") as prepare:
             with self.assertRaisesRegex(pipeline.renderer.RenderError, "does not exist"):
