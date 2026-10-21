@@ -231,6 +231,25 @@ python tools/book-video-renderer/pipeline.py \
 
 The initial adapter supports 5- or 10-second clips at 768P. The renderer loops/trims each generated clip to its storyboard scene duration. The adapter checks that every `video`/`broll` scene has an image, estimates spend for uncached clips (including a 0.7-second duration allowance), and aborts before making any paid request if the estimate exceeds `--video-budget-usd`. Completed clips are cached under `output/<run-id>/video-provider-cache/`; unchanged clips are reused on reruns. The manifest records the model, estimated spend, budget, and which scenes were cached or requested.
 
+### Zero-cost AI video preflight
+
+Before configuring `FAL_KEY` or making any paid request, validate the Naval inputs, cache state, and budget locally:
+
+```bash
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-real-media \
+  --assets-dir /path/to/naval-source-images \
+  --ai-video-provider fal-h3-max-turbo \
+  --video-budget-usd 0.50 \
+  --video-clip-seconds 5 \
+  --video-preflight-only
+```
+
+This mode deliberately does **not** require `FAL_KEY`, does not synthesize TTS, does not upload images, and does not call the fal API. It validates every `video`/`broll` source image, checks existing provider cache entries, and reports cached/billable scene IDs plus the conservative cost estimate. A missing/corrupt image or an insufficient budget fails before any paid work.
+
+For staged acceptance, first run the same checks on a derived 1–2 scene storyboard with its target duration updated. Only after those scenes have real generated clips that pass ffprobe/FFmpeg and final-render checks should the workflow expand to all eight Naval dynamic scenes. The `broll`/`video` label alone is never evidence that real motion footage exists.
+
 The current public list price for H3 Max Turbo is approximately $0.025 per generated second; prices and actual billing may change. For eight uncached clips at 10 seconds each, the conservative estimate is about $2.14. This is an estimate, not a billing guarantee. Selecting this provider uploads scene images and visual prompts to fal.ai and can incur charges. The default provider remains `none`; no network request occurs unless you explicitly select `--ai-video-provider fal-h3-max-turbo`.
 
 
