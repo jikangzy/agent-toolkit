@@ -123,6 +123,23 @@ python tools/book-video-renderer/pipeline.py \
 
 The pipeline does **not** generate images or music; those must be supplied locally. Edge TTS sends narration text to an external online service. Speech MP3/WAV files and word-boundary metadata are cached per scene under `.local/runs/<output-name>/audio/`; unchanged scenes are reused without another TTS request. Use `--force-tts` to regenerate all narration. The source storyboard is never rewritten. For offline/no-narration rendering, use `--tts-provider none` or call `renderer.py` directly.
 
+If narration was produced elsewhere (another TTS provider, a studio recording, or a previous verified run), the same pipeline can render it without any network TTS call. Put one WAV per scene in a local directory and use:
+
+```bash
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --tts-provider supplied \
+  --tts-audio-dir output/naval-test-001/narration \
+  --tts-audio-provider edge-tts \
+  --tts-audio-voice zh-CN-YunxiNeural \
+  --subtitle-file output/naval-test-001/aligned-subtitles.srt \
+  --music-file output/naval-test-001/music.mp3
+```
+
+In `supplied` mode the pipeline validates every `scene_XXX.wav`, measures its real duration, writes a derived storyboard under the work directory, and records the supplied provider/voice in the manifest. This makes the pipeline provider-neutral and suitable for reusing already-approved narration without another synthesis request.
+
 
 ### Use AI-generated images
 
