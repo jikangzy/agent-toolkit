@@ -198,7 +198,7 @@ python tools/book-video-renderer/renderer.py \
 
 `--require-video-assets` makes the render fail before scene assembly if any `video` or `broll` scene lacks a valid clip. Without it, missing clips use a supplied still image if available, otherwise a clearly recorded placeholder. The manifest records each scene's `visual_source` as `video`, `image`, or `placeholder`, along with source hashes. Replacing one MP4 invalidates only that scene's cache. Imported footage is looped or trimmed to its scene duration, center-cropped to 9:16, normalized to 1080×1920 at 30 fps, and overlaid with the storyboard's exact on-screen text. Audio embedded in source clips is deliberately discarded; narration and optional music are mixed as separate tracks.
 
-This is the provider-neutral ingestion boundary, not an AI video-generation API. The CLI does not create or download video clips. A future service adapter can implement `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)`; that adapter must own a stable cache keyed by the scene prompt and provider/model configuration. The supplied-file adapter makes the complete dynamic-video rendering path testable without paid credits or external API credentials.
+The local supplied-file adapter ingests existing clips without generating them. The optional fal adapter below implements the same `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)` contract and only calls its external service when explicitly selected with a spend cap. Additional providers can implement this contract and must cache results by visual prompt, source image, and model configuration.
 
 ### Optional paid AI video generation (fal.ai)
 
