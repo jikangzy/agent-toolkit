@@ -48,6 +48,42 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(kwargs["require_video_assets"])
         self.assertIsNone(result["narration_preflight"])
 
+    def test_paid_video_provider_requires_explicit_budget_and_forces_motion_coverage(self):
+        output = self.root / "output"
+        images = self.root / "images"
+        provider = object()
+        with patch.object(
+            pipeline, "FalH3MaxTurboVideoProvider", return_value=provider
+        ) as create_provider, patch.object(
+            pipeline.renderer, "render", return_value=self.manifest
+        ) as render:
+            result = pipeline.run_pipeline(
+                EXAMPLE,
+                output,
+                assets_dir=images,
+                ai_video_provider="fal-h3-max-turbo",
+                video_budget_usd=0.75,
+                video_clip_seconds=5,
+                tts_provider="none",
+            )
+
+        create_provider.assert_called_once_with(images.resolve(), 0.75, clip_seconds=5)
+        self.assertIs(render.call_args.kwargs["video_provider"], provider)
+        self.assertTrue(render.call_args.kwargs["require_video_assets"])
+        self.assertIsNone(result["narration_preflight"])
+
+    def test_paid_video_provider_refuses_missing_budget_before_network_work(self):
+        with patch.object(pipeline, "FalH3MaxTurboVideoProvider") as create_provider:
+            with self.assertRaisesRegex(pipeline.renderer.RenderError, "explicit video_budget_usd cap"):
+                pipeline.run_pipeline(
+                    EXAMPLE,
+                    self.root / "output",
+                    assets_dir=self.root / "images",
+                    ai_video_provider="fal-h3-max-turbo",
+                    tts_provider="none",
+                )
+        create_provider.assert_not_called()
+
     def test_edge_tts_mode_runs_preflight_then_uses_aligned_subtitles(self):
         output = self.root / "output"
         work_dir = self.root / ".local" / "runs" / "naval-test"
