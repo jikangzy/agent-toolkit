@@ -166,7 +166,7 @@ class FalH3MaxTurboVideoProvider:
     def _input_key(self, scene, image):
         return fingerprint({
             "cache_version": VIDEO_PROVIDER_CACHE_VERSION,
-            "scene": scene,
+            "scene": {"id": scene["id"], "visual": scene["visual"]},
             "image_sha256": digest(image),
             "model": self.model_id,
             "resolution": self.resolution,
