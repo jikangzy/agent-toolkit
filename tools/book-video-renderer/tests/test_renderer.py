@@ -581,6 +581,8 @@ class UnitTests(unittest.TestCase):
         ), patch.object(video_provider, 'download_video', side_effect=fake_download), patch.object(
             video_provider, 'validate_video_asset',
             return_value={'path': str(workdir/'generated.mp4'), 'duration_seconds': 5.7, 'width': 768, 'height': 1366, 'codec': 'h264'}
+        ), patch.object(video_provider, 'submit_fal_once',
+                        side_effect=lambda model, arguments, on_enqueue: (on_enqueue('mock-request'), subscribe(model, arguments))[1]
         ):
             adapter = video_provider.FalH3MaxTurboVideoProvider(
                 images, budget_usd=1.0, clip_seconds=5

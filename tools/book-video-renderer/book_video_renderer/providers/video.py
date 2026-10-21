@@ -4,11 +4,12 @@ from __future__ import annotations
 import json
 import math
 import os
+import time
 from fractions import Fraction
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, urlopen, build_opener, HTTPRedirectHandler
 
 from PIL import Image
 
@@ -22,6 +23,56 @@ FAL_H3_MAX_TURBO_MODEL = "minimax/h3-max-turbo/image-to-video"
 FAL_H3_MAX_TURBO_USD_PER_SECOND = 0.025
 FAL_OUTPUT_DURATION_OVERHEAD_SECONDS = 0.7
 VIDEO_PROVIDER_CACHE_VERSION = "video-provider-cache-v2"
+
+
+class _NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise RenderError('Redirect refused at authenticated fal queue boundary')
+
+
+def submit_fal_once(model, arguments, on_enqueue, timeout_seconds=600):
+    """One inference POST, then GET-only polling; never retry a submission.
+
+    fal-client 1.0.3 retries queue POSTs up to ten times. Use its upload helper
+    only; own this narrow authenticated boundary to make max submissions real.
+    """
+    key = os.environ.get('FAL_KEY')
+    if not key:
+        raise RenderError('FAL_KEY missing')
+    if model != FAL_H3_MAX_TURBO_MODEL:
+        raise RenderError('Unsupported fal model scope')
+    opener = build_opener(_NoRedirect())
+    deadline = time.monotonic() + timeout_seconds
+
+    def request(url, method='GET', body=None):
+        parsed = urlparse(url)
+        if (parsed.scheme != 'https' or parsed.netloc != 'queue.fal.run'
+                or parsed.username or parsed.password or parsed.fragment):
+            raise RenderError('Untrusted fal queue receipt URL')
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RenderError('fal queue deadline exceeded; reconcile request ID before retry')
+        req = Request(url, data=json.dumps(body).encode('utf-8') if body is not None else None,
+                      headers={'Authorization': f'Key {key}', 'Content-Type': 'application/json'}, method=method)
+        with opener.open(req, timeout=min(remaining, 120)) as response:
+            data = response.read(4 * 1024 * 1024 + 1)
+        if len(data) > 4 * 1024 * 1024:
+            raise RenderError('fal queue JSON response too large')
+        return json.loads(data)
+
+    receipt = request('https://queue.fal.run/' + model, 'POST', arguments)
+    if not isinstance(receipt.get('request_id'), str) or not receipt['request_id']:
+        raise RenderError('fal queue receipt missing request_id; reconcile before retry')
+    # Persist before waiting for any result, including failures/timeouts.
+    on_enqueue(receipt['request_id'])
+    status_url, response_url = receipt['status_url'], receipt['response_url']
+    while True:
+        status = request(status_url).get('status')
+        if status == 'COMPLETED':
+            return request(response_url)
+        if status not in ('IN_QUEUE', 'IN_PROGRESS'):
+            raise RenderError('fal queue failed/unknown status; reconcile request before retry')
+        time.sleep(min(1, max(0, deadline - time.monotonic())))
 
 
 class VideoProvider(Protocol):
@@ -386,16 +437,19 @@ class FalH3MaxTurboVideoProvider:
             attempt.update(status='submitted_or_uncertain', paid_request_attempts=1)
             save_json(ledger_path, ledger)
             self.runtime_statistics['paid_request_attempts'] += 1
-            result = fal_client.subscribe(
-                self.model_id,
-                arguments={
+            def on_enqueue(request_id):
+                attempt.update(request_id=request_id, status='enqueued')
+                save_json(ledger_path, ledger)
+
+            result = submit_fal_once(
+                self.model_id, {
                     "prompt": prompt,
                     "image_url": image_url,
                     "duration": self.clip_seconds,
                     "resolution": self.resolution,
                     "prompt_expansion_mode": "disabled",
                     "enable_safety_checker": True,
-                },
+                }, on_enqueue=on_enqueue,
             )
         except Exception as exc:
             attempt['status'] = 'failed_or_uncertain'
@@ -421,7 +475,7 @@ class FalH3MaxTurboVideoProvider:
             "source_image_path": str(image),
             "source_image_sha256": digest(snapshot),
             "confirmed_actual_cost_usd": None,
-            "request_id": result.get('request_id'),
+            "request_id": attempt.get('request_id'),
             "resolution": self.resolution,
             "requested_duration_seconds": self.clip_seconds,
             "estimated_cost_usd": round(

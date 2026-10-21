@@ -4,6 +4,7 @@ Fake fal calls below prove adapter behavior, never live service success.
 """
 import copy
 import hashlib
+import io
 import importlib.util
 import json
 import os
@@ -14,7 +15,7 @@ import sys
 import tempfile
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import book_video_renderer.providers.video as video
@@ -124,7 +125,10 @@ class PaidBoundaryTests(unittest.TestCase):
         provider = self.provider()
         provider.preflight(self.scenes, self.cache)
         self.fake.subscribe = lambda *a, **kw: (_ for _ in ()).throw(RuntimeError('secret-value'))
-        with patch.dict(os.environ, {'FAL_KEY': 'secret-value'}), patch.dict(sys.modules, {'fal_client': self.fake}):
+        def fail_after_receipt(*args, **kwargs):
+            kwargs['on_enqueue']('known-test-id')
+            return self.fake.subscribe()
+        with patch.dict(os.environ, {'FAL_KEY': 'secret-value'}), patch.dict(sys.modules, {'fal_client': self.fake}), patch.object(video, 'submit_fal_once', side_effect=fail_after_receipt):
             with self.assertRaises(RenderError) as error:
                 provider.get_or_generate_video(self.scenes[0], 10, self.cache/'scene_002')
             self.assertNotIn('secret-value', str(error.exception))
@@ -134,6 +138,7 @@ class PaidBoundaryTests(unittest.TestCase):
         ledger = json.loads((self.cache/'request-ledger.json').read_text())
         self.assertEqual(len(ledger['attempts']), 1)
         self.assertEqual(ledger['attempts'][0]['paid_request_attempts'], 1)
+        self.assertEqual(ledger['attempts'][0]['request_id'], 'known-test-id')
         self.assertEqual(ledger['attempts'][0]['estimated_reserved_usd'], provider.estimated_clip_cost)
         self.assertNotIn('secret-value', json.dumps(ledger))
 
@@ -230,7 +235,10 @@ class SyntheticProviderIntegrationTests(unittest.TestCase):
         def download(url, dest):
             shutil.copyfile(clip, dest)
             return Path(dest)
-        with patch.dict(os.environ, {'FAL_KEY':'test-only'}), patch.dict(sys.modules, {'fal_client':self.fake}), patch.object(video, 'download_video', side_effect=download):
+        def submit(model, arguments, on_enqueue):
+            on_enqueue('synthetic-test-request')
+            return self.fake.subscribe(model, arguments)
+        with patch.dict(os.environ, {'FAL_KEY':'test-only'}), patch.dict(sys.modules, {'fal_client':self.fake}), patch.object(video, 'download_video', side_effect=download), patch.object(video, 'submit_fal_once', side_effect=submit):
             manifest = render(VALIDATION/'two-scene-storyboard.json', output, FONT, attempts=1,
                               assets_dir=self.images, require_video_assets=True, video_provider=provider)
         self.assertEqual(manifest['qc']['full_decode_status'], 'PASS')
@@ -255,3 +263,38 @@ class SyntheticProviderIntegrationTests(unittest.TestCase):
         save_json(output/'manifest.json', manifest)
         with self.assertRaisesRegex(RenderError, 'input fingerprint mismatch'):
             verify_media(VALIDATION/'two-scene-storyboard.json', output, self.images)
+
+
+class QueueSubmissionTests(unittest.TestCase):
+    def test_exactly_one_post_then_get_polling_and_receipt_before_poll(self):
+        calls, receipts = [], []
+        outputs = [dict(request_id='test-request',status_url='https://queue.fal.run/status',response_url='https://queue.fal.run/result'),
+                   dict(status='IN_PROGRESS'),dict(status='COMPLETED'),dict(video=dict(url='https://example.test/clip.mp4'))]
+        def open_request(req, timeout):
+            calls.append(req.get_method())
+            if req.get_method() == 'GET':
+                self.assertEqual(receipts, ['test-request'])
+            return io.BytesIO(json.dumps(outputs.pop(0)).encode())
+        with patch.dict(os.environ, {'FAL_KEY':'test-only'}), patch.object(video, 'build_opener', return_value=types.SimpleNamespace(open=open_request)), patch.object(video.time,'sleep'):
+            result = video.submit_fal_once(video.FAL_H3_MAX_TURBO_MODEL, {}, receipts.append)
+        self.assertEqual(calls, ['POST','GET','GET','GET'])
+        self.assertIn('video', result)
+
+    def test_post_transport_error_never_retries(self):
+        opener=types.SimpleNamespace(open=Mock(side_effect=OSError('test disconnect')))
+        with patch.dict(os.environ, {'FAL_KEY':'test-only'}), patch.object(video,'build_opener',return_value=opener):
+            with self.assertRaises(OSError):
+                video.submit_fal_once(video.FAL_H3_MAX_TURBO_MODEL, {}, lambda request_id: None)
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_untrusted_receipt_cannot_receive_authorization_header(self):
+        receipt=dict(request_id='test-request',status_url='https://evil.test/status',response_url='https://queue.fal.run/result')
+        opener=types.SimpleNamespace(open=Mock(return_value=io.BytesIO(json.dumps(receipt).encode())))
+        with patch.dict(os.environ, {'FAL_KEY':'test-only'}), patch.object(video,'build_opener',return_value=opener):
+            with self.assertRaisesRegex(RenderError,'Untrusted fal queue'):
+                video.submit_fal_once(video.FAL_H3_MAX_TURBO_MODEL, {}, lambda request_id: None)
+        self.assertEqual(opener.open.call_count,1)
+
+    def test_authenticated_redirects_fail_closed(self):
+        with self.assertRaisesRegex(RenderError,'Redirect refused'):
+            video._NoRedirect().redirect_request(None,None,302,'test',{},'https://evil.test/')

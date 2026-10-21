@@ -1,13 +1,13 @@
 {
   "status": "PASS",
-  "tests_run": 82,
+  "tests_run": 86,
   "failures": 0,
   "errors": 0,
   "skipped": 0,
-  "elapsed_seconds": 119.938,
+  "elapsed_seconds": 122.219,
   "python": "3.12.1",
   "ffmpeg": "ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
-  "git_head_at_run": "04edeff096fec139880b5bcbe1fdf91663dc4ff4",
+  "git_head_at_run": "ca9848b5ba9d36bedf224e55ad886ba060e09b31",
   "work_branch": "feat/naval-real-media-e2e-validation",
   "tested_python_sources": {
     "tools/book-video-renderer/book_video_renderer/__init__.py": "4bfb9319e417c57695c61a6f0e9c17ec2bb5b4150772a1b8987a4a8afdf135fd",
@@ -21,7 +21,7 @@
     "tools/book-video-renderer/book_video_renderer/providers/image.py": "c311f1161d45aa60c19e8c31af8145ed5d489ed789d216c4371bad48b0c92025",
     "tools/book-video-renderer/book_video_renderer/providers/music.py": "01272ff6e78df8deeff7b83e5f483c0c46778bba53eff1aea9dc7be0154a4fd9",
     "tools/book-video-renderer/book_video_renderer/providers/tts.py": "51bbc0c77f91e35976950a0bbac7bb5ef9e3b11005a9cdde57aa4b2f2ff6e457",
-    "tools/book-video-renderer/book_video_renderer/providers/video.py": "27c92f70530c070a43126927eae283d4c25cdfae3792df8a05b1f64243f11413",
+    "tools/book-video-renderer/book_video_renderer/providers/video.py": "0ec6d077b45668dd92269ca3af5e1da3b6cba866d51cb6b0629666930bc6a52c",
     "tools/book-video-renderer/book_video_renderer/qc.py": "89067e4a23816b29bd4c3405c5b8a2b3058ba9bd021fc356c97a85284b9d4833",
     "tools/book-video-renderer/book_video_renderer/renderer.py": "35d664aa37aa88db5332cbef74e27de9cc42fb1f95ffb7d1da97e1d9523efee4",
     "tools/book-video-renderer/book_video_renderer/scene.py": "40b4e694989b409ff5c8e9ebd0997f3392f3d3d45ebf8f65cabc4d81f16a6586",
@@ -34,8 +34,8 @@
     "tools/book-video-renderer/renderer.py": "929896becbbca412fa37bdb05138f91ad682fb1848ef2c008dad96d83fba6bf1",
     "tools/book-video-renderer/tests/test_mvp.py": "9ca989fccea108da7b03a853325424d99d14ff3e3df0b50f19e154bca70e9a31",
     "tools/book-video-renderer/tests/test_pipeline.py": "8f43d08cc914e4c6929760a7fdb84d78b2985cb66a07f44635a6a22b822d2820",
-    "tools/book-video-renderer/tests/test_real_media.py": "1909a797cfa31e6255ba7152d7da7a8832fd2000787514016b7fe20bfb09ad9b",
-    "tools/book-video-renderer/tests/test_renderer.py": "d85aa04a38b06f9636d8af750b6609d77c6ff28c3bb0911336132e6e7c6c745c",
+    "tools/book-video-renderer/tests/test_real_media.py": "ad2adf088c721e0e835392b9f0a12127666acf24ccfd43db6a01980a2a9f347c",
+    "tools/book-video-renderer/tests/test_renderer.py": "2b28a59067a4becc5ba3977c447d69ee1be15a8a2e758aadacc7a2dc0e49c001",
     "tools/book-video-renderer/validate_naval.py": "14ebbb4563a37fa135a6909e52278ab4791bddcd74367af9ff5c9ac8ed4c433b",
     "tools/book-video-renderer/verify_real_media.py": "732df9ae27fd0a81091122c4cedf3c19d2bff93293220a6e37d59c9dd1fa694a"
   },
@@ -182,6 +182,22 @@
     },
     {
       "test": "test_real_media.PaidBoundaryTests.test_supplied_audio_label_does_not_claim_synthesis",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.QueueSubmissionTests.test_authenticated_redirects_fail_closed",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.QueueSubmissionTests.test_exactly_one_post_then_get_polling_and_receipt_before_poll",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.QueueSubmissionTests.test_post_transport_error_never_retries",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.QueueSubmissionTests.test_untrusted_receipt_cannot_receive_authorization_header",
       "status": "PASS"
     },
     {
