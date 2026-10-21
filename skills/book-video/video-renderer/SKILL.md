@@ -55,10 +55,28 @@ python -m pip install -r tools/book-video-renderer/requirements.txt
 python tools/book-video-renderer/renderer.py \
   examples/book-video/naval-test-001/storyboard.json \
   --output output/<run-id> \
-  --assets-dir output/<run-id>/images
+  --assets-dir output/<run-id>/images \
+  --video-assets-dir output/<run-id>/videos \
+  --require-video-assets
 ```
 
 Before rendering, save per-scene images to `output/<run-id>/images/scene_001.png`, etc., and real motion clips for every `video`/`broll` scene to `output/<run-id>/videos/scene_003.mp4`, etc. Do not commit generated assets. Use `--require-video-assets` for production so missing motion clips are a hard failure rather than a silent still-image fallback. For paid AI video generation, install `tools/book-video-renderer/requirements-video-fal.txt`, set `FAL_KEY`, and explicitly pass `--ai-video-provider fal-h3-max-turbo --video-budget-usd 1.00`. The adapter preflights image coverage and estimated spend before any request, caches generated clips, and reports the estimate in the manifest. The actual API is opt-in only.
+
+Example paid run (requires your own `FAL_KEY`; the 1.00 USD cap is an estimated maximum for uncached video generation, not a guarantee of final billing):
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements-video-fal.txt
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/<run-id> \
+  --assets-dir output/<run-id>/images \
+  --ai-video-provider fal-h3-max-turbo \
+  --video-clip-seconds 5 \
+  --video-budget-usd 1.00 \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural
+```
+
 
 The default `--tts-provider none` is offline and produces no audio track. Once the per-scene images are ready, use this single command for measured Chinese TTS, aligned subtitles, optional local music, and final rendering:
 
