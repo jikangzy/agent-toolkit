@@ -10,6 +10,7 @@ import tempfile
 import types
 import unittest
 from unittest.mock import patch
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import book_video_renderer.renderer as engine
@@ -488,7 +489,7 @@ class UnitTests(unittest.TestCase):
         images.mkdir()
         for scene in data['scenes']:
             if scene['visual']['type'] in ('video', 'broll'):
-                (images/(scene['id']+'.png')).write_bytes(b'fake image bytes')
+                Image.new('RGB', (32, 32), (24, 48, 72)).save(images/(scene['id']+'.png'))
 
         with patch.dict(os.environ, {'FAL_KEY': 'test-key'}):
             adapter = video_provider.FalH3MaxTurboVideoProvider(
@@ -505,7 +506,7 @@ class UnitTests(unittest.TestCase):
         images = self.root/'fal-images'
         images.mkdir()
         image_path = images/(scene['id']+'.png')
-        image_path.write_bytes(b'fake image bytes')
+        Image.new('RGB', (32, 32), (24, 48, 72)).save(image_path)
         workdir = self.root/'fal-cache'/scene['id']
         calls = {'upload': 0, 'subscribe': 0, 'download': 0}
         fake_client = types.ModuleType('fal_client')
