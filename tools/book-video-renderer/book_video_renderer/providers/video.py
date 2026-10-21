@@ -2,6 +2,7 @@
 from pathlib import Path
 from typing import Protocol
 from .image import PlaceholderImage
+from ..models import RenderError
 
 
 class VideoProvider(Protocol):
@@ -19,7 +20,7 @@ def find_video_asset(assets_dir, scene_id):
         if (Path(assets_dir) / (scene_id + ext)).is_file()
     ]
     if len(matches) > 1:
-        raise ValueError(
+        raise RenderError(
             f"{scene_id}: multiple video assets found; keep exactly one of "
             "MP4, MOV, M4V, WebM, or MKV."
         )
