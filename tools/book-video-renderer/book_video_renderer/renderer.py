@@ -143,7 +143,8 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                         speech_status=getattr(provider, 'speech_status', 'provided_audio'),
                         visual_assets_supplied=assets_dir is not None,
                         video_provider=getattr(video_provider, 'provider_name', None),
-                        video_assets_supplied=video_provider is not None,
+                        video_assets_supplied=video_assets_dir is not None,
+                        video_provider_enabled=video_provider is not None,
                         require_video_assets=require_video_assets)
         if video_generation_report is not None:
             manifest['video_generation'] = video_generation_report
@@ -192,7 +193,7 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         if video_provider is not None:
             manifest['provider_notes'] = manifest.get('provider_notes', [])
             manifest['provider_notes'].append(
-                'Supplied video clips are normalized to 1080x1920/30fps; source-clip audio is discarded. '
+                'Video clips are normalized to 1080x1920/30fps; source-clip audio is discarded. '
                 'Narration and optional background music are mixed separately.'
             )
         if subtitle_info:
