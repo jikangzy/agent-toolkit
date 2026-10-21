@@ -47,6 +47,17 @@ class MVPTests(unittest.TestCase):
                 load_storyboard(source)
             self.assertEqual(original, source.read_bytes())
 
+    def test_naval_example_declares_dynamic_scenes_as_video_or_broll(self):
+        naval = json.loads((ROOT/'examples/book-video/naval-test-001/storyboard.json').read_text(encoding='utf-8'))
+        by_id = {scene['id']: scene['visual']['type'] for scene in naval['scenes']}
+        self.assertEqual(by_id['scene_003'], 'broll')
+        self.assertEqual(by_id['scene_004'], 'broll')
+        self.assertEqual(by_id['scene_005'], 'video')
+        self.assertEqual(by_id['scene_007'], 'broll')
+        self.assertEqual(by_id['scene_008'], 'broll')
+        self.assertEqual(by_id['scene_001'], 'title_card')
+        self.assertEqual(by_id['scene_010'], 'title_card')
+
     def test_duration_rounds_each_scene_to_frames(self):
         data = fixture()
         data['scenes'][0]['duration_seconds'] = 3.019

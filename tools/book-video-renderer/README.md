@@ -28,8 +28,8 @@ This default is fully offline: deterministic placeholder visuals, unchanged sour
 `onscreen_text`, Ken Burns motion selected from `visual.motion`, proportional subtitle
 timing, no narration audio, and no BGM. `NoTTS` explicitly records `fallback_no_audio`;
 it never labels silence as synthesized speech. Real narration produces AAC audio.
-`video` / `broll` use the static visual fallback. Unknown motion (including fade-in)
-uses gentle push-in; transitions currently use cuts.
+`video` / `broll` scenes use supplied motion clips when present; use `--require-video-assets` to fail instead of falling back. Unknown motion (including fade-in)
+uses gentle push-in for stills; transitions currently use cuts.
 
 Validation uses the shared schema and requires unique, contiguous scene IDs in
 original order (`scene_001`, `scene_002`, ...). Invalid order fails; it is never sorted.
@@ -67,7 +67,7 @@ separates `cli`, `models`, `validator`, `renderer`, `scene`, `ffmpeg`, `fonts`,
   being cut. Add CLI selection when a real provider is chosen; keep credentials in
   environment/configuration outside source control. `RecordedSpeech` already accepts
   caller-supplied WAV files. No paid or external-account provider was used for MVP validation.
-- `ImageProvider.generate_image` defines the still-image boundary. `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)` defines the dynamic-footage boundary; `SuppliedVideoProvider` currently ingests caller-provided clips. An AI-video adapter can implement the same protocol later and must cache requests by scene prompt and provider/model configuration.
+- `ImageProvider.generate_image` defines the still-image boundary. `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)` defines the dynamic-footage boundary. `SuppliedVideoProvider` ingests caller-provided clips; the opt-in `FalH3MaxTurboVideoProvider` generates image-to-video clips after an explicit budget cap and preflight. Both use per-scene caches.
 - `MusicProvider.get_or_generate_music` defines the music boundary; `NoMusic` returns
   `None`. Local, properly licensed files remain optional through `--music-file`.
 
@@ -317,7 +317,7 @@ All generated data stays under the output directory, already ignored by the repo
 
 ## Explicit MVP fallbacks
 
-- When no `--assets-dir` image is supplied for a scene, `image`, `title_card`, `broll`, `video`, and `quote_card` use a labeled program-generated placeholder. The renderer does not call an image/video API. Supplied still images are normalized and animated with a gentle push-in; AI video clips are not supported yet.
+- When no `--assets-dir` image or valid motion clip is supplied, the renderer uses a labeled placeholder and records it in the manifest. Supplied stills receive gentle push-in motion; supplied/AI-generated clips are normalized as real video. Paid AI video generation is opt-in and requires an explicit spend cap.
 - Default `NoTTS` returns no audio. `manifest.json` records `speech_status: fallback_no_audio` and an explicit fallback warning. No silent track or synthetic tone is presented as speech.
 - Requested music is omitted and recorded in the manifest.
 - Scene transitions use cuts; requested transitions remain recorded in the manifest.

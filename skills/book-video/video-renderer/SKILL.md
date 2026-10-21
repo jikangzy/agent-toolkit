@@ -31,7 +31,7 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
    - Never ask the image model to write the title/subtitles into the image; the renderer overlays the exact storyboard `onscreen_text`.
    - If the current environment cannot generate or save images, do not claim that it did; continue with labeled placeholders and report the limitation.
    - For scenes with `visual.type` `video` or `broll`, generate or obtain real MP4/MOV/WebM clips when a video-capable provider is available. Save them as `<run-dir>/videos/<scene_id>.mp4`.
-   - The CLI ingests real clips but does not call an AI video API yet. If no real clips are available, use stills only when explicitly acceptable and disclose the fallback.
+   - The CLI supports local MP4/MOV/WebM clips and an opt-in fal.ai image-to-video provider. Paid generation requires an explicit `--video-budget-usd` cap; if no real clips are available, use stills only when explicitly acceptable and disclose the fallback.
 6. Normalize stills to 1080x1920; normalize supplied motion clips to 1080x1920/30fps, overlay the exact `onscreen_text`, and strip source-clip audio so narration/music remain separate. Missing assets are recorded in the manifest.
 7. Render one MP4 per scene, passing `--assets-dir <run-dir>/images` and `--video-assets-dir <run-dir>/videos`. For production runs, add `--require-video-assets` so any missing `video`/`broll` clip fails instead of silently falling back.
 8. Concatenate all scenes in storyboard order.
