@@ -168,6 +168,38 @@ python tools/book-video-renderer/renderer.py \
 
 Accepted image formats: PNG, JPG/JPEG, WebP. Use exactly one image per scene ID. Missing images fall back to clearly labeled placeholders and are listed in `manifest.json`; invalid or ambiguous assets fail clearly. Asset SHA-256 hashes participate in per-scene cache keys, so replacing one image regenerates only that scene. Image generation still happens outside the CLI, using the agent's available image tool; the renderer never pretends a placeholder is a generated image.
 
+### Use real motion-video clips (no silent still-image fallback)
+
+The renderer can now ingest actual motion clips for storyboard scenes whose `visual.type` is `video` or `broll`. Put one clip per scene in a separate directory:
+
+```text
+output/naval-test-001/videos/
+  scene_003.mp4
+  scene_004.mp4
+  scene_005.mp4
+  ...
+```
+
+Supported input extensions are MP4, MOV, M4V, MKV, and WebM. Then render with:
+
+```bash
+python tools/book-video-renderer/renderer.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --video-assets-dir output/naval-test-001/videos \
+  --require-video-assets \
+  --tts-audio-dir output/naval-test-001/audio \
+  --tts-audio-provider edge-tts \
+  --tts-audio-voice zh-CN-YunxiNeural \
+  --subtitle-file output/naval-test-001/aligned-subtitles.srt \
+  --music-file output/naval-test-001/music.mp3
+```
+
+`--require-video-assets` makes the render fail before scene assembly if any `video` or `broll` scene lacks a valid clip. Without it, missing clips use a supplied still image if available, otherwise a clearly recorded placeholder. The manifest records each scene's `visual_source` as `video`, `image`, or `placeholder`, along with source hashes. Replacing one MP4 invalidates only that scene's cache. Imported footage is looped or trimmed to its scene duration, center-cropped to 9:16, normalized to 1080×1920 at 30 fps, and overlaid with the storyboard's exact on-screen text. Audio embedded in source clips is deliberately discarded; narration and optional music are mixed as separate tracks.
+
+This is the provider-neutral ingestion boundary, not an AI video-generation API. The CLI does not create or download video clips. A future service adapter can implement `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)`; that adapter must own a stable cache keyed by the scene prompt and provider/model configuration. The supplied-file adapter makes the complete dynamic-video rendering path testable without paid credits or external API credentials.
+
 ### Optional background music
 
 The renderer can mix a **local audio file** into the final MP4. It does not generate or download music. Set `music.enabled: true` in the storyboard (the default for this schema), then provide the file:
