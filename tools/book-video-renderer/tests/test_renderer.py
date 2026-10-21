@@ -181,7 +181,7 @@ class UnitTests(unittest.TestCase):
         }
         srt, report = prepare_narration.build_aligned_srt(data, boundaries, max_chars=3)
         self.assertEqual(report["scene_001"]["alignment"], "word_boundary")
-        blocks = [block for block in srt.strip().split("\n\n") if block.strip()]
+        blocks = [block for block in srt.strip().split("\n\n\n") if block.strip()]
 
         def seconds(stamp):
             hours, minutes, rest = stamp.split(":")
