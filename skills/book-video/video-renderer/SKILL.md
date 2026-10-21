@@ -60,9 +60,9 @@ python tools/book-video-renderer/renderer.py \
   --require-video-assets
 ```
 
-Before rendering, save per-scene images to `output/<run-id>/images/scene_001.png`, etc., and real motion clips for every `video`/`broll` scene to `output/<run-id>/videos/scene_003.mp4`, etc. Do not commit generated assets. Use `--require-video-assets` for production so missing motion clips are a hard failure rather than a silent still-image fallback. For paid AI video generation, install `tools/book-video-renderer/requirements-video-fal.txt`, set `FAL_KEY`, and explicitly pass `--ai-video-provider fal-h3-max-turbo --video-budget-usd 1.00`. The adapter preflights image coverage and estimated spend before any request, caches generated clips, and reports the estimate in the manifest. The actual API is opt-in only.
+Before rendering, save per-scene images to `output/<run-id>/images/scene_001.png`, etc., and real motion clips for every `video`/`broll` scene to `output/<run-id>/videos/scene_002.mp4` through `scene_009.mp4` for this Naval storyboard. Do not commit generated assets. Use `--require-video-assets` for production so missing motion clips are a hard failure rather than a silent still-image fallback. For paid AI video generation, install `tools/book-video-renderer/requirements-video-fal.txt`, set `FAL_KEY`, and explicitly pass `--ai-video-provider fal-h3-max-turbo --video-budget-usd 2.50`. The adapter preflights image coverage and estimated spend before any request, caches generated clips, and reports the estimate in the manifest. The actual API is opt-in only.
 
-Example paid run (requires your own `FAL_KEY`; the 1.00 USD cap is an estimated maximum for uncached video generation, not a guarantee of final billing):
+Example paid run (requires your own `FAL_KEY`; the 2.50 USD cap is an estimated maximum for uncached video generation, not a guarantee of final billing):
 
 ```bash
 python -m pip install -r tools/book-video-renderer/requirements-video-fal.txt
@@ -71,8 +71,8 @@ python tools/book-video-renderer/pipeline.py \
   --output output/<run-id> \
   --assets-dir output/<run-id>/images \
   --ai-video-provider fal-h3-max-turbo \
-  --video-clip-seconds 5 \
-  --video-budget-usd 1.00 \
+  --video-clip-seconds 10 \
+  --video-budget-usd 2.50 \
   --tts-provider edge-tts \
   --tts-voice zh-CN-YunxiNeural
 ```
