@@ -8,6 +8,8 @@ from typing import Protocol
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from PIL import Image
+
 from ..ffmpeg import probe
 from ..manifest import digest, fingerprint, save_json
 from ..models import RenderError
@@ -161,6 +163,13 @@ class FalH3MaxTurboVideoProvider:
                 f"{scene['id']}: fal image-to-video requires a still image in "
                 f"{self.image_assets_dir}"
             )
+        try:
+            with Image.open(image) as source:
+                source.verify()
+        except Exception as exc:
+            raise RenderError(
+                f"{scene['id']}: invalid source image for fal video generation: {image}: {exc}"
+            ) from exc
         return image
 
     def _input_key(self, scene, image):
