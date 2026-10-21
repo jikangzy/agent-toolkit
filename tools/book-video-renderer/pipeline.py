@@ -79,6 +79,10 @@ def run_pipeline(
     # Validate local inputs before doing any expensive or external work.
     data = renderer.load_storyboard(source)
     renderer.resolve_music(data, music_file, music_volume_db)
+    if assets_dir is not None and not assets_dir.is_dir():
+        raise renderer.RenderError(f"Visual assets directory does not exist: {assets_dir}")
+    if video_assets_dir is not None and not video_assets_dir.is_dir():
+        raise renderer.RenderError(f"Video assets directory does not exist: {video_assets_dir}")
     if work_dir is None:
         work_dir = ROOT / ".local" / "runs" / output.name
     else:
