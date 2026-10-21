@@ -63,6 +63,15 @@
 - Evidence: validation/fal-sdk-audit.json; output/naval-e2e/queue-regression.log; latest full regression updates validation/test-results.json. No genuine clip or Provider/narration E2E claimed.
 - Generation/TTS external requests 0; paid 0; separate SDK distribution download and GitHub requests occurred. FAL_KEY missing, authorization NOT GRANTED. Frozen-source 86-test run: PASS, 0 failures/errors/skips, 122.219s. Next: commit/push, latest-head CI and final packet.
 
+## Stage F — latest executable CI and artifact verification: PASS
+
+- origin/main remains 04edeff096fec139880b5bcbe1fdf91663dc4ff4; work branch feat/naval-real-media-e2e-validation; base same; executable commit c3ea61bea208c45032bad7b257c3e9b3509e60bc; current report-bearing HEAD e34bef4cceceeda74b14238202ff75e684cc7b43, 4 ahead/0 behind. Only final docs/evidence updates in worktree, attachment preserved untracked.
+- PR https://github.com/jikangzy/agent-toolkit/pull/24; code CI https://github.com/jikangzy/agent-toolkit/actions/runs/39618980546 SUCCESS. Commands: gh run view --log; gh run download --name naval-zero-cost-evidence; gh api actions/runs/.../artifacts.
+- CI compile, full 86-test Linux FFmpeg suite, formal PNG validation, both guarded actual CLI preflights and evidence upload all passed. Live Edge sample intentionally not run.
+- Downloaded artifact under output/naval-e2e/ci-artifact-code; remote PNG hashes/dimensions match local report 8/8, preflight counts/cost/cache/zero-request guards match both scopes. Full log output/naval-e2e/ci-code-86.log.
+- No executable changed since the 86-test snapshot. No real Provider video/cache or genuine narration exists. Preflight cache empty; costs .285/.40 and 1.14/1.20, paid/external generation/TTS requests 0. Actual vendor charges unverified; no consumption authorized.
+- Remaining only paid/genuine-media blockers. Final report-only commit will be rechecked in CI; its exact final head and CI result are published to Issue #23 and the standalone evidence receipt. Main is not merged or altered.
+
 # FINAL REVIEW PACKET
 
 ## 1. Overall Status
@@ -75,10 +84,10 @@ BLOCKED — PAID AUTHORIZATION REQUIRED. NO PAID GENERATION EXECUTED.
 - Repository jikangzy/agent-toolkit; base main; fresh initial main and work base `04edeff096fec139880b5bcbe1fdf91663dc4ff4`.
 - Work branch `feat/naval-real-media-e2e-validation`.
 - Executable validation commit: c3ea61bea208c45032bad7b257c3e9b3509e60bc.
-- Current HEAD at report preparation: c3ea61bea208c45032bad7b257c3e9b3509e60bc.
-- Relative main: 3 commits ahead / 0 behind before final report revision.
-- Worktree: only task-related report/docs updates; user attachment preserved untracked.
-- PR: https://github.com/jikangzy/agent-toolkit/pull/24; CI: https://github.com/jikangzy/agent-toolkit/actions/runs/39617811274 (Prior 82-test snapshots SUCCESS; new 86-test executable revision awaiting push/CI).
+- Current HEAD at report preparation: e34bef4cceceeda74b14238202ff75e684cc7b43.
+- Relative main: 4 commits ahead / 0 behind before final report revision.
+- Worktree: only final report and exact preflight-argument evidence updates; no executable changes.
+- PR: https://github.com/jikangzy/agent-toolkit/pull/24; CI: https://github.com/jikangzy/agent-toolkit/actions/runs/39618980546 (SUCCESS — 86-test code snapshot; formal-source/guarded-preflight artifact downloaded and verified).
 - Exact final report-only commit is the PR head and is also published to Issue #23; a committed report cannot embed its own future object hash. Tested Python file hashes bind the executable revision independently of report-only commits.
 
 ## 3. OpenSpec
@@ -204,7 +213,7 @@ genuine narrated E2E acceptance.
 - Prior missing dependency/socketpair/Windows alias/title-card assertion failures fixed and rerun; no deleted tests or added skips.
 - OpenSpec structural/evidence/paid-boundary check PASS (check_e2e_contract.py). Official upstream OpenSpec CLI NOT RUN: not installed/configured here; not falsely counted as a pass.
 - Workflow YAML parse, CLI --help and git diff --check PASS.
-- CI: Prior 82-test snapshots SUCCESS; new 86-test executable revision awaiting push/CI; https://github.com/jikangzy/agent-toolkit/actions/runs/39617811274. CI uses formal PNGs, guarded preflight and full local suite; live Edge job remains opt-in and not executed. Artifact: naval-zero-cost-evidence.
+- CI: SUCCESS — 86-test code snapshot; formal-source/guarded-preflight artifact downloaded and verified; https://github.com/jikangzy/agent-toolkit/actions/runs/39618980546. CI uses formal PNGs, guarded preflight and full local suite; live Edge job remains opt-in and not executed. Artifact: naval-zero-cost-evidence.
 - GitHub/dependency download traffic occurred; global network count was not instrumented. Zero request claims above refer only to guarded preflights and generation/TTS boundaries.
 
 ## 13. Proven Claims

@@ -47,7 +47,7 @@
       "--video-clip-seconds",
       "5",
       "--video-budget-usd",
-      "0.40",
+      ".40",
       "--video-preflight-only"
     ]
   }
