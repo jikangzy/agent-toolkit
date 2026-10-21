@@ -15,7 +15,7 @@
 - [x] 准备付费生成后的自动来源/QC 审计命令；mock fal + 本地合成视频集成验证（不是真实 fal 验收）。
 - [x] 最新代码完整 compile/unit/FFmpeg 回归全部通过：82 tests，0 failures/errors/skips（见 test-results.json）。
 - [ ] 本工作分支 PR CI 通过，并提供运行链接和证据 artifact。
-- [ ] 提交并推送工作分支，创建目标 main 的 PR；最终报告与 Issue #23 同步。
+- [x] 提交并推送工作分支，创建目标 main 的 PR #24；阶段报告持续同步 Issue #23。
 
 ## Real-service acceptance — NOT RUN / paid authorization required
 

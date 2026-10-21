@@ -62,11 +62,11 @@ BLOCKED — PAID AUTHORIZATION REQUIRED. NO PAID GENERATION EXECUTED.
 
 - Repository jikangzy/agent-toolkit; base main; fresh initial main and work base `04edeff096fec139880b5bcbe1fdf91663dc4ff4`.
 - Work branch `feat/naval-real-media-e2e-validation`.
-- Executable validation commit: pending submission.
-- Current HEAD at report preparation: 04edeff096fec139880b5bcbe1fdf91663dc4ff4 (task changes uncommitted at test time).
-- Relative main: 0 commits at test time; task changes in worktree.
-- Worktree: task source/docs/small evidence changes; user ZIP untracked; ignored runtime outputs excluded.
-- PR: pending submission; CI: pending PR (NOT RUN yet).
+- Executable validation commit: ded3ec84763ad9a97ce555a0f3d1f4383c039217.
+- Current HEAD at report preparation: ded3ec84763ad9a97ce555a0f3d1f4383c039217.
+- Relative main: 1 commit ahead, 0 behind at submission; 28 task-related files.
+- Worktree: tracked clean after code commit; only untracked user attachment, ignored local evidence/dependencies/caches preserved.
+- PR: https://github.com/jikangzy/agent-toolkit/pull/24; CI: https://github.com/jikangzy/agent-toolkit/actions/runs/39617580937 (QUEUED (code commit; not yet PASS)).
 - Exact final report-only commit is the PR head and is also published to Issue #23; a committed report cannot embed its own future object hash. Tested Python file hashes bind the executable revision independently of report-only commits.
 
 ## 3. OpenSpec
@@ -192,7 +192,7 @@ genuine narrated E2E acceptance.
 - Prior missing dependency/socketpair/Windows alias/title-card assertion failures fixed and rerun; no deleted tests or added skips.
 - OpenSpec structural/evidence/paid-boundary check PASS (check_e2e_contract.py). Official upstream OpenSpec CLI NOT RUN: not installed/configured here; not falsely counted as a pass.
 - Workflow YAML parse, CLI --help and git diff --check PASS.
-- CI: pending PR; pending URL. CI uses formal PNGs, guarded preflight and full local suite; live Edge job remains opt-in and not executed. Artifact: naval-zero-cost-evidence.
+- CI: QUEUED (code commit; not yet PASS); https://github.com/jikangzy/agent-toolkit/actions/runs/39617580937. CI uses formal PNGs, guarded preflight and full local suite; live Edge job remains opt-in and not executed. Artifact: naval-zero-cost-evidence.
 - GitHub/dependency download traffic occurred; global network count was not instrumented. Zero request claims above refer only to guarded preflights and generation/TTS boundaries.
 
 ## 13. Proven Claims
