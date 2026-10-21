@@ -13,6 +13,7 @@ sys.path.insert(0, str(HERE))
 
 import prepare_narration  # noqa: E402
 import renderer  # noqa: E402
+from book_video_renderer.providers.video import FalH3MaxTurboVideoProvider  # noqa: E402
 
 
 def run_pipeline(
@@ -23,6 +24,9 @@ def run_pipeline(
     assets_dir=None,
     video_assets_dir=None,
     require_video_assets=False,
+    ai_video_provider="none",
+    video_budget_usd=None,
+    video_clip_seconds=5,
     tts_provider="none",
     tts_voice="zh-CN-YunxiNeural",
     tts_audio_dir=None,
@@ -50,6 +54,25 @@ def run_pipeline(
         raise renderer.RenderError("attempts must be between 1 and 10")
     if tts_provider not in ("none", "edge-tts", "supplied"):
         raise renderer.RenderError("tts_provider must be 'none', 'edge-tts', or 'supplied'")
+    if ai_video_provider not in ("none", "fal-h3-max-turbo"):
+        raise renderer.RenderError("ai_video_provider must be 'none' or 'fal-h3-max-turbo'")
+    if ai_video_provider != "none":
+        if video_assets_dir is not None:
+            raise renderer.RenderError("Use either video_assets_dir or ai_video_provider, not both")
+        if assets_dir is None:
+            raise renderer.RenderError("AI video generation requires assets_dir with one still image per video/broll scene")
+        if video_budget_usd is None:
+            raise renderer.RenderError("AI video generation requires an explicit video_budget_usd cap")
+        video_provider = FalH3MaxTurboVideoProvider(
+            assets_dir, video_budget_usd, clip_seconds=video_clip_seconds
+        )
+        require_video_assets = True
+    else:
+        if video_budget_usd is not None:
+            raise renderer.RenderError("video_budget_usd requires ai_video_provider")
+        if video_clip_seconds != 5:
+            raise renderer.RenderError("video_clip_seconds requires ai_video_provider")
+        video_provider = None
     if force_tts and tts_provider != "edge-tts":
         raise renderer.RenderError("--force-tts requires --tts-provider edge-tts")
     if tts_provider == "supplied" and tts_audio_dir is None:
@@ -66,6 +89,7 @@ def run_pipeline(
             assets_dir=assets_dir,
             video_assets_dir=video_assets_dir,
             require_video_assets=require_video_assets,
+            video_provider=video_provider,
             music_file=music_file,
             music_volume_db=music_volume_db,
             subtitle_file=subtitle_file,
@@ -132,6 +156,7 @@ def run_pipeline(
             assets_dir=assets_dir,
             video_assets_dir=video_assets_dir,
             require_video_assets=require_video_assets,
+            video_provider=video_provider,
             speech_provider_name=tts_audio_provider or "supplied-audio",
             speech_voice=tts_audio_voice,
             music_file=music_file,
@@ -163,6 +188,7 @@ def run_pipeline(
         assets_dir=assets_dir,
         video_assets_dir=video_assets_dir,
         require_video_assets=require_video_assets,
+        video_provider=video_provider,
         speech_provider_name="edge-tts",
         speech_voice=voice_id,
         music_file=music_file,
@@ -181,6 +207,9 @@ def main():
     parser.add_argument("--assets-dir", type=Path, help="Generated stills named <scene_id>.png/.jpg/.jpeg/.webp")
     parser.add_argument("--video-assets-dir", type=Path, help="Real motion clips named <scene_id>.mp4/.mov/.mkv/.webm for video/broll scenes")
     parser.add_argument("--require-video-assets", action="store_true", help="Fail if any video/broll scene lacks a real video clip")
+    parser.add_argument("--ai-video-provider", choices=("none", "fal-h3-max-turbo"), default="none", help="Optional paid image-to-video API; default none makes no external video requests")
+    parser.add_argument("--video-budget-usd", type=float, help="Required maximum estimated spend for the selected AI video provider")
+    parser.add_argument("--video-clip-seconds", type=int, choices=(5, 10), default=5, help="Length of each generated clip before render trims/loops it")
     parser.add_argument(
         "--tts-provider",
         choices=("none", "edge-tts", "supplied"),
@@ -208,6 +237,9 @@ def main():
             assets_dir=args.assets_dir,
             video_assets_dir=args.video_assets_dir,
             require_video_assets=args.require_video_assets,
+            ai_video_provider=args.ai_video_provider,
+            video_budget_usd=args.video_budget_usd,
+            video_clip_seconds=args.video_clip_seconds,
             tts_provider=args.tts_provider,
             tts_voice=args.tts_voice,
             tts_audio_dir=args.tts_audio_dir,

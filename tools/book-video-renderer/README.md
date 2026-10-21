@@ -198,7 +198,37 @@ python tools/book-video-renderer/renderer.py \
 
 `--require-video-assets` makes the render fail before scene assembly if any `video` or `broll` scene lacks a valid clip. Without it, missing clips use a supplied still image if available, otherwise a clearly recorded placeholder. The manifest records each scene's `visual_source` as `video`, `image`, or `placeholder`, along with source hashes. Replacing one MP4 invalidates only that scene's cache. Imported footage is looped or trimmed to its scene duration, center-cropped to 9:16, normalized to 1080×1920 at 30 fps, and overlaid with the storyboard's exact on-screen text. Audio embedded in source clips is deliberately discarded; narration and optional music are mixed as separate tracks.
 
-This is the provider-neutral ingestion boundary, not an AI video-generation API. The CLI does not create or download video clips. A future service adapter can implement `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)`; that adapter must own a stable cache keyed by the scene prompt and provider/model configuration. The supplied-file adapter makes the complete dynamic-video rendering path testable without paid credits or external API credentials.
+The local supplied-file adapter ingests existing clips without generating them. The optional fal adapter below implements the same `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)` contract and only calls its external service when explicitly selected with a spend cap. Additional providers can implement this contract and must cache results by visual prompt, source image, and model configuration.
+
+### Optional paid AI video generation (fal.ai)
+
+An opt-in adapter is available for the fal.ai MiniMax H3 Max Turbo image-to-video endpoint. It uses each existing scene image as the first frame and the storyboard's visual prompt/motion instructions to generate a real clip. The CLI still handles crop/scale, exact on-screen text, narration, music, subtitles, and final MP4 assembly.
+
+Install the optional dependency and configure the API key in your shell (never commit the key):
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements-video-fal.txt
+# PowerShell:
+$env:FAL_KEY = "your-fal-api-key"
+```
+
+Then explicitly opt in and set a hard estimated-spend cap:
+
+```bash
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/naval-test-001 \
+  --assets-dir output/naval-test-001/images \
+  --ai-video-provider fal-h3-max-turbo \
+  --video-clip-seconds 5 \
+  --video-budget-usd 1.00 \
+  --music-file output/naval-test-001/music.mp3
+```
+
+The initial adapter supports 5- or 10-second clips at 768P. The renderer loops/trims each generated clip to its storyboard scene duration. The adapter checks that every `video`/`broll` scene has an image, estimates spend for uncached clips (including a 0.7-second duration allowance), and aborts before making any paid request if the estimate exceeds `--video-budget-usd`. Completed clips are cached under `output/<run-id>/video-provider-cache/`; unchanged clips are reused on reruns. The manifest records the model, estimated spend, budget, and which scenes were cached or requested.
+
+The current public list price for H3 Max Turbo is approximately $0.025 per generated second; prices and actual billing may change. For six uncached clips at 5 seconds each, the conservative estimate is about $0.86. This is an estimate, not a billing guarantee. Selecting this provider uploads scene images and visual prompts to fal.ai and can incur charges. The default provider remains `none`; no network request occurs unless you explicitly select `--ai-video-provider fal-h3-max-turbo`.
+
 
 ### Optional background music
 

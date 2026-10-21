@@ -46,7 +46,7 @@ Consume a validated `storyboard.json` and produce a finished MP4. Content is loc
 
 ## Current repository MVP
 
-The checked-in CLI accepts agent-generated stills via `--assets-dir` and real motion clips via `--video-assets-dir`. It normalizes clips, overlays exact storyboard text, and records per-scene `visual_source` in the manifest. `--require-video-assets` fails closed if any `video`/`broll` scene lacks a valid clip. The CLI does not itself call an image- or AI-video-generation API, and it does not generate background music. It can optionally synthesize real Chinese narration through Edge TTS. Do not describe a default no-audio render as a finished narrated video.
+The checked-in CLI accepts stills via `--assets-dir` and real motion clips via `--video-assets-dir`. It also supports an optional fal H3 Max Turbo image-to-video provider, but only when explicitly selected with `--ai-video-provider fal-h3-max-turbo` and a positive `--video-budget-usd` cap. This uploads scene images and visual prompts to fal.ai and may incur charges; keep `FAL_KEY` in the environment and never commit it. The default provider remains `none`. `--require-video-assets` fails closed if any `video`/`broll` scene lacks a valid clip. The CLI does not itself call an image-generation API or generate background music. It can optionally synthesize real Chinese narration through Edge TTS. Do not describe a default no-audio render as a finished narrated video.
 
 Run commands from the repository root:
 
@@ -55,10 +55,28 @@ python -m pip install -r tools/book-video-renderer/requirements.txt
 python tools/book-video-renderer/renderer.py \
   examples/book-video/naval-test-001/storyboard.json \
   --output output/<run-id> \
-  --assets-dir output/<run-id>/images
+  --assets-dir output/<run-id>/images \
+  --video-assets-dir output/<run-id>/videos \
+  --require-video-assets
 ```
 
-Before rendering, save per-scene images to `output/<run-id>/images/scene_001.png`, etc., and real motion clips for every `video`/`broll` scene to `output/<run-id>/videos/scene_003.mp4`, etc. Do not commit generated assets. Use `--require-video-assets` for production so missing motion clips are a hard failure rather than a silent still-image fallback. The `video` provider currently ingests supplied files; a real AI-video service adapter remains future work.
+Before rendering, save per-scene images to `output/<run-id>/images/scene_001.png`, etc., and real motion clips for every `video`/`broll` scene to `output/<run-id>/videos/scene_003.mp4`, etc. Do not commit generated assets. Use `--require-video-assets` for production so missing motion clips are a hard failure rather than a silent still-image fallback. For paid AI video generation, install `tools/book-video-renderer/requirements-video-fal.txt`, set `FAL_KEY`, and explicitly pass `--ai-video-provider fal-h3-max-turbo --video-budget-usd 1.00`. The adapter preflights image coverage and estimated spend before any request, caches generated clips, and reports the estimate in the manifest. The actual API is opt-in only.
+
+Example paid run (requires your own `FAL_KEY`; the 1.00 USD cap is an estimated maximum for uncached video generation, not a guarantee of final billing):
+
+```bash
+python -m pip install -r tools/book-video-renderer/requirements-video-fal.txt
+python tools/book-video-renderer/pipeline.py \
+  examples/book-video/naval-test-001/storyboard.json \
+  --output output/<run-id> \
+  --assets-dir output/<run-id>/images \
+  --ai-video-provider fal-h3-max-turbo \
+  --video-clip-seconds 5 \
+  --video-budget-usd 1.00 \
+  --tts-provider edge-tts \
+  --tts-voice zh-CN-YunxiNeural
+```
+
 
 The default `--tts-provider none` is offline and produces no audio track. Once the per-scene images are ready, use this single command for measured Chinese TTS, aligned subtitles, optional local music, and final rendering:
 

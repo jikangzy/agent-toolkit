@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import book_video_renderer.renderer as engine
 import book_video_renderer.providers.tts as tts
 import book_video_renderer.providers.music as music
+import book_video_renderer.providers.video as video_provider
 import book_video_renderer.qc as qc
 
 MODULE = Path(__file__).resolve().parents[1] / 'renderer.py'
@@ -480,6 +481,78 @@ class UnitTests(unittest.TestCase):
         with patch.object(qc, 'probe', return_value=metadata), self.assertRaisesRegex(r.RenderError, 'format'):
             r.verify_video('bad.mp4', 3, False)
 
+
+    def test_fal_video_preflight_enforces_budget_before_any_paid_request(self):
+        data = fixture()
+        images = self.root/'fal-images'
+        images.mkdir()
+        for scene in data['scenes']:
+            if scene['visual']['type'] in ('video', 'broll'):
+                (images/(scene['id']+'.png')).write_bytes(b'fake image bytes')
+
+        with patch.dict(os.environ, {'FAL_KEY': 'test-key'}):
+            adapter = video_provider.FalH3MaxTurboVideoProvider(
+                images, budget_usd=0.01, clip_seconds=5
+            )
+            with self.assertRaisesRegex(r.RenderError, 'exceeds video budget'):
+                adapter.preflight(data['scenes'], self.root/'fal-cache')
+
+        self.assertFalse((self.root/'fal-cache').exists())
+
+    def test_fal_video_provider_reuses_cached_clip_without_rebilling(self):
+        data = fixture()
+        scene = data['scenes'][2]  # broll
+        images = self.root/'fal-images'
+        images.mkdir()
+        image_path = images/(scene['id']+'.png')
+        image_path.write_bytes(b'fake image bytes')
+        workdir = self.root/'fal-cache'/scene['id']
+        calls = {'upload': 0, 'subscribe': 0, 'download': 0}
+        fake_client = types.ModuleType('fal_client')
+
+        def upload_file(path):
+            calls['upload'] += 1
+            self.assertEqual(Path(path), image_path)
+            return 'https://fal.example/image.png'
+
+        def subscribe(model_id, arguments):
+            calls['subscribe'] += 1
+            self.assertEqual(model_id, 'minimax/h3-max-turbo/image-to-video')
+            self.assertEqual(arguments['image_url'], 'https://fal.example/image.png')
+            self.assertEqual(arguments['duration'], 5)
+            self.assertIn(scene['visual']['prompt'], arguments['prompt'])
+            return {'video': {'url': 'https://fal.example/generated.mp4'}}
+
+        fake_client.upload_file = upload_file
+        fake_client.subscribe = subscribe
+
+        def fake_download(url, destination):
+            calls['download'] += 1
+            Path(destination).write_bytes(b'fake mp4 bytes')
+            return Path(destination)
+
+        with patch.dict(os.environ, {'FAL_KEY': 'test-key'}), patch.dict(
+            sys.modules, {'fal_client': fake_client}
+        ), patch.object(video_provider, 'download_video', side_effect=fake_download), patch.object(
+            video_provider, 'validate_video_asset',
+            return_value={'path': str(workdir/'generated.mp4'), 'duration_seconds': 5.7, 'width': 768, 'height': 1366, 'codec': 'h264'}
+        ):
+            adapter = video_provider.FalH3MaxTurboVideoProvider(
+                images, budget_usd=1.0, clip_seconds=5
+            )
+            first = adapter.get_or_generate_video(scene, 3.0, workdir)
+            second = adapter.get_or_generate_video(scene, 3.0, workdir)
+
+        self.assertEqual(first, second)
+        self.assertTrue(first.is_file())
+        self.assertEqual(calls, {'upload': 1, 'subscribe': 1, 'download': 1})
+        record = json.loads((workdir/'complete.json').read_text(encoding='utf-8'))
+        self.assertEqual(record['provider'], 'fal-minimax-h3-max-turbo')
+        self.assertAlmostEqual(record['estimated_cost_usd'], 0.1425)
+
+    def test_video_download_rejects_non_https_urls(self):
+        with self.assertRaisesRegex(r.RenderError, 'non-HTTPS'):
+            video_provider.download_video('http://example.com/video.mp4', self.root/'video.mp4')
 
     def test_edge_tts_uses_verbatim_text_and_voice_rate_without_network(self):
         calls = {}

@@ -1,0 +1,2 @@
+# Optional paid AI video generation; installed only when fal-h3-max-turbo is selected.
+fal-client>=0.5.0,<2.0.0
