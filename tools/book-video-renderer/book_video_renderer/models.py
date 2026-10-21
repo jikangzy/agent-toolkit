@@ -5,7 +5,7 @@ import math
 
 ROOT = Path(__file__).resolve().parents[3]
 SCHEMA = ROOT / "schemas/book-video/storyboard.schema.json"
-VERSION = "mvp-4"
+VERSION = "mvp-5"
 WIDTH, HEIGHT, FPS = 1080, 1920, 30
 
 class RenderError(RuntimeError):
