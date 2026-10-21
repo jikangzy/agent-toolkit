@@ -500,6 +500,23 @@ class UnitTests(unittest.TestCase):
 
         self.assertFalse((self.root/'fal-cache').exists())
 
+    def test_fal_video_preflight_rejects_corrupt_images_before_api_requests(self):
+        data = fixture()
+        images = self.root/'fal-invalid-images'
+        images.mkdir()
+        for scene in data['scenes']:
+            if scene['visual']['type'] in ('video', 'broll'):
+                (images/(scene['id']+'.png')).write_bytes(b'not a real image')
+
+        with patch.dict(os.environ, {'FAL_KEY': 'test-key'}):
+            adapter = video_provider.FalH3MaxTurboVideoProvider(
+                images, budget_usd=1.0, clip_seconds=5
+            )
+            with self.assertRaisesRegex(r.RenderError, 'invalid source image'):
+                adapter.preflight(data['scenes'], self.root/'fal-invalid-cache')
+
+        self.assertFalse((self.root/'fal-invalid-cache').exists())
+
     def test_fal_video_provider_reuses_cached_clip_without_rebilling(self):
         data = fixture()
         scene = data['scenes'][2]  # broll
