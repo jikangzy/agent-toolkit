@@ -46,7 +46,9 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         # Include all scenes even if a dependency or an earlier scene fails.
         manifest['scenes'] = [dict(id=scene['id'], status='pending', input_hash=None,
                                    visual_asset_path=None, audio_path=None, scene_video_path=None,
-                                   duration=frame_count(scene)/FPS, error=None, retry_count=0)
+                                   duration=frame_count(scene)/FPS, error=None, retry_count=0,
+                                   visual_type=scene['visual']['type'], visual_source='not_generated',
+                                   video_provenance=None)
                               for scene in data['scenes']]
         music_path, music_volume_db = resolve_music(data, music_file, music_volume_db)
         music_enabled = data.get('music', {}).get('enabled', True)
@@ -99,10 +101,14 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         video_assets = {}
         video_asset_info = {}
         video_generation_report = None
+        manifest.update(video_provider=getattr(video_provider, 'provider_name', None),
+                        require_video_assets=bool(require_video_assets))
         if video_provider is not None and callable(getattr(video_provider, 'preflight', None)):
             video_generation_report = video_provider.preflight(
                 data['scenes'], output/'video-provider-cache'
             )
+            manifest['video_generation'] = video_generation_report
+            save_json(manifest_path, manifest)
         if video_provider is not None:
             for scene in data['scenes']:
                 # b-roll/video scenes are the explicit dynamic-footage boundary.
@@ -110,21 +116,42 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                     video_assets[scene['id']] = None
                     video_asset_info[scene['id']] = None
                     continue
-                asset = video_provider.get_or_generate_video(
-                    scene, frame_count(scene) / FPS,
-                    output/'video-provider-cache'/scene['id']
-                )
+                entry = next(e for e in manifest['scenes'] if e['id'] == scene['id'])
+                try:
+                    asset = video_provider.get_or_generate_video(
+                        scene, frame_count(scene) / FPS,
+                        output/'video-provider-cache'/scene['id']
+                    )
+                except Exception as exc:
+                    entry.update(status='failed', error=str(exc), visual_source='provider_failed')
+                    manifest['video_provider_records'] = getattr(video_provider, 'scene_records', {})
+                    manifest['video_requests'] = getattr(video_provider, 'runtime_statistics', {})
+                    save_json(manifest_path, manifest)
+                    raise
                 if asset is not None:
                     asset = Path(asset).expanduser().resolve()
-                    info = validate_video_asset(asset)
+                    try:
+                        info = validate_video_asset(asset)
+                    except Exception as exc:
+                        entry.update(status='failed', visual_source='provider_output_invalid', error=str(exc))
+                        save_json(manifest_path, manifest)
+                        raise
                     video_assets[scene['id']] = asset
                     video_asset_info[scene['id']] = info
+                    entry['video_provenance'] = getattr(video_provider, 'scene_records', {}).get(
+                        scene['id'], {'origin': 'supplied_video', 'provider': getattr(video_provider, 'provider_name', None),
+                                      'sha256': digest(asset), 'output_path': str(asset)})
+                    entry.update(visual_source='video', video_asset_path=str(asset),
+                                 video_asset_sha256=digest(asset))
+                    save_json(manifest_path, manifest)
                 else:
                     video_assets[scene['id']] = None
                     video_asset_info[scene['id']] = None
         else:
             video_assets = {scene['id']: None for scene in data['scenes']}
             video_asset_info = {scene['id']: None for scene in data['scenes']}
+        manifest['video_requests'] = getattr(video_provider, 'runtime_statistics', {})
+        manifest['video_provider_records'] = getattr(video_provider, 'scene_records', {})
 
         missing_required_video = [
             scene['id'] for scene in data['scenes']
@@ -132,6 +159,11 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             and video_assets[scene['id']] is None
         ]
         if require_video_assets and missing_required_video:
+            manifest['video_coverage'] = {'eligible_scene_count': len(missing_required_video) + sum(v is not None for v in video_assets.values()),
+                                          'missing_clip_scene_ids': missing_required_video, 'required': True}
+            for entry in manifest['scenes']:
+                if entry['id'] in missing_required_video:
+                    entry.update(status='failed', visual_source='missing_required_video', error='Missing required video clip')
             raise RenderError(
                 'Missing required video clips for video/broll scenes: '
                 + ', '.join(missing_required_video)
@@ -151,6 +183,7 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         missing_assets = [
             scene['id'] for scene in data['scenes']
             if visual_assets[scene['id']] is None and video_assets[scene['id']] is None
+            and scene['visual']['type'] not in ('title_card', 'quote_card')
         ]
         manifest['visual_assets'] = {
             scene['id']: ({
@@ -246,8 +279,8 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             effective_visual_sha = video_asset_sha or visual_asset_sha or 'placeholder-v1'
             entry = {**manifest['scenes'][index], 'id': scene['id'], 'status': 'pending', 'attempts': 0, 'errors': [],
                      'visual_type': scene['visual']['type'],
-                     'placeholder': visual_asset is None and video_asset is None,
-                     'visual_source': 'video' if video_asset is not None else ('image' if visual_asset is not None else 'placeholder'),
+                     'placeholder': visual_asset is None and video_asset is None and scene['visual']['type'] not in ('title_card', 'quote_card'),
+                     'visual_source': 'video' if video_asset is not None else ('image' if visual_asset is not None else (scene['visual']['type'] if scene['visual']['type'] in ('title_card', 'quote_card') else 'placeholder')),
                      'visual_asset': visual_asset.name if visual_asset is not None else None,
                      'visual_asset_sha256': visual_asset_sha,
                      'video_asset': video_asset.name if video_asset is not None else None,
@@ -312,6 +345,9 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                          sha256=digest(destination), audio=audio, error=None,
                          audio_path=record['audio_path'], scene_video_path=str(destination),
                          speech_status='fallback_no_audio' if not audio else getattr(provider, 'speech_status', 'provided_audio'))
+            entry['audio_source'] = ({'path': record['audio_path'], 'sha256': digest(Path(record['audio_path'])),
+                                      'provider': getattr(provider, 'provider_name', type(provider).__name__),
+                                      'voice': getattr(provider, 'voice_id', None)} if audio else None)
             save_json(manifest_path, manifest)
         if len(set(audio_flags)) != 1:
             raise RenderError('Provider returned mixed speech/no-speech scenes; refusing incomplete narration')
@@ -365,7 +401,8 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         cmd += ['-movflags', '+faststart', final_temp.name]
         def assemble():
             # cwd is explicit; no process-global directory mutation.
-            result = subprocess.run([str(a) for a in cmd], cwd=output, capture_output=True, text=True, timeout=1800)
+            result = subprocess.run([str(a) for a in cmd], cwd=output, capture_output=True,
+                                    encoding='utf-8', errors='replace', timeout=1800)
             if result.returncode:
                 raise RenderError('Final assembly failed: ' + result.stderr[-4000:])
             return verify_video(final_temp, total_duration, has_final_audio)

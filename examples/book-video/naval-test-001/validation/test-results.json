@@ -1,0 +1,373 @@
+{
+  "status": "PASS",
+  "tests_run": 82,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 119.938,
+  "python": "3.12.1",
+  "ffmpeg": "ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers",
+  "git_head_at_run": "04edeff096fec139880b5bcbe1fdf91663dc4ff4",
+  "work_branch": "feat/naval-real-media-e2e-validation",
+  "tested_python_sources": {
+    "tools/book-video-renderer/book_video_renderer/__init__.py": "4bfb9319e417c57695c61a6f0e9c17ec2bb5b4150772a1b8987a4a8afdf135fd",
+    "tools/book-video-renderer/book_video_renderer/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "tools/book-video-renderer/book_video_renderer/cli.py": "fe8c252c5821033568e50f8016fc034f491ac30d2c4a37bd6dcace97b96debba",
+    "tools/book-video-renderer/book_video_renderer/ffmpeg.py": "c0e39cef759ee54fc4354150fd90f01e478981e7e3d70d914dbf13667fb02342",
+    "tools/book-video-renderer/book_video_renderer/fonts.py": "d1baca8931cd66eb1c3217e17928eebe7eaf9cb61a4899386b82c5f67e682b30",
+    "tools/book-video-renderer/book_video_renderer/manifest.py": "7c7be051409d076969c5d28c109f0a13ce0483d1dfa57ba915aae5f1d3e9081b",
+    "tools/book-video-renderer/book_video_renderer/models.py": "001b12ee502e563c1e40603241b43b033b3dd2adca7a1f527358d156065062be",
+    "tools/book-video-renderer/book_video_renderer/providers/__init__.py": "e38ad051196245106ac5a9b71f4c9f4a0834fbafaed0a76b054b7b94d8af91ec",
+    "tools/book-video-renderer/book_video_renderer/providers/image.py": "c311f1161d45aa60c19e8c31af8145ed5d489ed789d216c4371bad48b0c92025",
+    "tools/book-video-renderer/book_video_renderer/providers/music.py": "01272ff6e78df8deeff7b83e5f483c0c46778bba53eff1aea9dc7be0154a4fd9",
+    "tools/book-video-renderer/book_video_renderer/providers/tts.py": "51bbc0c77f91e35976950a0bbac7bb5ef9e3b11005a9cdde57aa4b2f2ff6e457",
+    "tools/book-video-renderer/book_video_renderer/providers/video.py": "27c92f70530c070a43126927eae283d4c25cdfae3792df8a05b1f64243f11413",
+    "tools/book-video-renderer/book_video_renderer/qc.py": "89067e4a23816b29bd4c3405c5b8a2b3058ba9bd021fc356c97a85284b9d4833",
+    "tools/book-video-renderer/book_video_renderer/renderer.py": "35d664aa37aa88db5332cbef74e27de9cc42fb1f95ffb7d1da97e1d9523efee4",
+    "tools/book-video-renderer/book_video_renderer/scene.py": "40b4e694989b409ff5c8e9ebd0997f3392f3d3d45ebf8f65cabc4d81f16a6586",
+    "tools/book-video-renderer/book_video_renderer/subtitle.py": "4b5c437046e46153218d48f8f1cf75cd634543aee2f6cfc606d5bc6a6d3f8ddd",
+    "tools/book-video-renderer/book_video_renderer/validator.py": "93cdd2128676274577768364d695b363435523c703121e0dad215525ab7f6e8e",
+    "tools/book-video-renderer/check_e2e_contract.py": "68c102eaa7af5139f24a459d233fbd08e7df9026f809e2cdb3d8c156fd7ef2a2",
+    "tools/book-video-renderer/offline_preflight.py": "bcb6ebf2798ff7d846b56587c25a6565bc981ec5b50ba3e5ece06627eb980aa3",
+    "tools/book-video-renderer/pipeline.py": "0441ca12906918a0e14d2f141267051d63f1b5e988708a463955915ea3e440a6",
+    "tools/book-video-renderer/prepare_narration.py": "f346c5fccc4f3d5e5c2096177d541149d62e851f2078fa1702a745e90c128c90",
+    "tools/book-video-renderer/renderer.py": "929896becbbca412fa37bdb05138f91ad682fb1848ef2c008dad96d83fba6bf1",
+    "tools/book-video-renderer/tests/test_mvp.py": "9ca989fccea108da7b03a853325424d99d14ff3e3df0b50f19e154bca70e9a31",
+    "tools/book-video-renderer/tests/test_pipeline.py": "8f43d08cc914e4c6929760a7fdb84d78b2985cb66a07f44635a6a22b822d2820",
+    "tools/book-video-renderer/tests/test_real_media.py": "1909a797cfa31e6255ba7152d7da7a8832fd2000787514016b7fe20bfb09ad9b",
+    "tools/book-video-renderer/tests/test_renderer.py": "d85aa04a38b06f9636d8af750b6609d77c6ff28c3bb0911336132e6e7c6c745c",
+    "tools/book-video-renderer/validate_naval.py": "14ebbb4563a37fa135a6909e52278ab4791bddcd74367af9ff5c9ac8ed4c433b",
+    "tools/book-video-renderer/verify_real_media.py": "732df9ae27fd0a81091122c4cedf3c19d2bff93293220a6e37d59c9dd1fa694a"
+  },
+  "tests": [
+    {
+      "test": "test_mvp.MVPTests.test_duration_rounds_each_scene_to_frames",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_invalid_input_writes_actionable_manifest",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_missing_cjk_font_retains_srt_and_unburned_video",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_motion_direction_mapping_and_safe_default",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_naval_example_declares_dynamic_scenes_as_video_or_broll",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_real_video_assets_render_as_motion_footage_and_invalidate_only_the_changed_scene",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_require_video_assets_fails_closed_for_missing_broll",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_scene_order_rejected_without_sorting_or_changing_source",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.MVPTests.test_supplied_images_audio_music_and_subtitles_render_offline_and_cache",
+      "status": "PASS"
+    },
+    {
+      "test": "test_mvp.RecoveryTests.test_failed_scene_preserves_completed_scene_and_resumes",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_edge_tts_mode_runs_preflight_then_uses_aligned_subtitles",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_external_subtitles_cannot_override_edge_tts_alignment",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_force_tts_requires_edge_tts",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_invalid_music_fails_before_any_external_tts_request",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_offline_mode_skips_narration_preflight",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_paid_video_provider_refuses_missing_budget_before_network_work",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_paid_video_provider_requires_explicit_budget_and_forces_motion_coverage",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_supplied_audio_mode_derives_timing_and_renders_without_network_tts",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_supplied_audio_requires_existing_complete_wav_directory",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_video_preflight_only_is_local_and_does_not_require_credentials",
+      "status": "PASS"
+    },
+    {
+      "test": "test_pipeline.PipelineTests.test_video_preflight_only_requires_explicit_local_inputs_and_budget",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.FormalSourcesTests.test_actual_cli_runs_full_and_two_preflight_with_network_guard",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.FormalSourcesTests.test_derived_fixture_preserves_all_original_fields_and_source",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.FormalSourcesTests.test_original_pngs_decode_and_match_checked_report",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_cache_key_includes_source_image_and_visual_configuration",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_cached_mp4_extension_and_matching_hash_do_not_bypass_decode",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_concurrent_generation_lock_fails_closed",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_corrupt_ledger_fails_closed",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_failed_or_uncertain_request_is_reserved_across_restart_and_secret_redacted",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_full_decode_failure_is_not_accepted_even_with_valid_headers",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_input_changed_after_preflight_is_rejected",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_preflight_rejects_budget_before_external_boundary",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_provider_failure_is_bound_to_scene_and_unstarted_scenes_remain_explicit",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_rejects_nonfinite_and_nonpositive_budget",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_reservations_reduce_budget_for_other_scenes",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.PaidBoundaryTests.test_supplied_audio_label_does_not_claim_synthesis",
+      "status": "PASS"
+    },
+    {
+      "test": "test_real_media.SyntheticProviderIntegrationTests.test_mock_provider_to_renderer_and_cache_with_actual_decoded_synthetic_video",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.IntegrationTests.test_aac_adapter_and_reject_truncation",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.IntegrationTests.test_all_visuals_cache_and_immutable_input",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.IntegrationTests.test_background_music_can_be_the_only_audio_track",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.IntegrationTests.test_background_music_mixes_with_narration_and_is_recorded",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.IntegrationTests.test_supplied_aligned_subtitles_are_validated_and_burned",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.IntegrationTests.test_supplied_image_asset_is_used_and_invalidates_only_its_scene_cache",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_aligned_srt_clamps_overlapping_word_boundary_cues",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_aligned_srt_uses_word_timing_and_falls_back_without_text_mismatch",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_cache_key_changes_for_scene_and_provider",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_duplicate_id",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_edge_tts_fits_slightly_overlong_speech_before_video_encoding",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_edge_tts_rate_bounds",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_edge_tts_rejects_oversized_speech_instead_of_truncating",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_edge_tts_uses_verbatim_text_and_voice_rate_without_network",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_exhausted_scene_retry_is_recorded",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_external_srt_validation_checks_timestamps_and_video_duration",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_fal_video_preflight_can_run_without_api_key_or_network",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_fal_video_preflight_enforces_budget_before_any_paid_request",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_fal_video_preflight_rejects_corrupt_images_before_api_requests",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_fal_video_provider_reuses_cached_clip_without_rebilling",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_ffprobe_rejects_wrong_codec",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_find_visual_asset_rejects_ambiguous_extensions",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_invalid_duration_and_visual",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_missing_dependency_writes_failed_manifest",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_missing_font_is_actionable",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_missing_recorded_speech_fails",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_music_requires_enabled_flag_and_valid_local_audio",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_music_volume_override_requires_file",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_no_tts_is_explicit",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_output_cannot_contain_source",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_preflight_collects_word_boundaries_from_same_audio_stream",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_preflight_refuses_to_overwrite_source_or_each_other",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_preflight_timing_extends_only_overlong_scenes_without_mutating_source",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_real_input_valid_and_unchanged",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_recorded_speech_metadata_labels_pre_synthesized_provider",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_retry_success_and_exhaustion",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_schema_rejects_missing_narration_and_unknown_fields",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_stamp_rollover",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_subtitle_text_order_and_timing",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_target_mismatch",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_unsupported_format",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_video_download_rejects_non_https_urls",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_visual_asset_is_normalized_to_vertical_frame",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_word_boundary_mapping_ignores_punctuation_omitted_by_tts",
+      "status": "PASS"
+    },
+    {
+      "test": "test_renderer.UnitTests.test_word_boundary_mapping_preserves_exact_source_text",
+      "status": "PASS"
+    }
+  ],
+  "claims": "Offline automated tests with synthetic clips/test tones and mocked fal/Edge boundaries; no real fal generation or external TTS executed."
+}

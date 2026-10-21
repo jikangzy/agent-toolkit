@@ -45,7 +45,7 @@ class UnitTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
 
     def write(self, data):
         path = self.root/'storyboard.json'
@@ -557,7 +557,7 @@ class UnitTests(unittest.TestCase):
 
         def upload_file(path):
             calls['upload'] += 1
-            self.assertEqual(Path(path), image_path)
+            self.assertEqual(Path(path).read_bytes(), image_path.read_bytes())
             return 'https://fal.example/image.png'
 
         def subscribe(model_id, arguments):
@@ -729,8 +729,14 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(first['status'], 'complete')
         self.assertFalse(first['scenes'][0]['placeholder'])
         self.assertEqual(first['scenes'][0]['visual_asset'], 'scene_001.png')
-        self.assertTrue(all(scene['placeholder'] for scene in first['scenes'][1:]))
-        self.assertTrue(any('scene_002' in item for item in first['fallbacks']))
+        for scene in first['scenes'][1:]:
+            if scene['visual_type'] in ('title_card', 'quote_card'):
+                self.assertFalse(scene['placeholder'])
+                self.assertEqual(scene['visual_source'], scene['visual_type'])
+            else:
+                self.assertTrue(scene['placeholder'])
+        self.assertFalse(any('scene_002' in item for item in first['fallbacks']))
+        self.assertTrue(any('scene_003' in item for item in first['fallbacks']))
         self.assertEqual(source.read_bytes(), original)
 
         second = r.render(source, output, FONT, assets_dir=assets)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from pathlib import Path
 from typing import Protocol
 from ..models import RenderError
@@ -41,7 +42,8 @@ class RecordedSpeech:
             raise RenderError('Missing real narration WAV files: ' + ', '.join(missing))
         self.provider_name = provider_name or 'RecordedSpeech'
         self.voice_id = voice_id
-        self.speech_status = 'generated_audio' if provider_name else 'provided_audio'
+        self.speech_status = ('generated_audio' if provider_name and provider_name.lower() in ('edge-tts', 'edgetts')
+                              else 'provided_audio')
         if provider_name and provider_name.lower() in ('edge-tts', 'edgetts'):
             self.provider_notice = (
                 'Narration was pre-synthesized through the external Edge TTS service; '
@@ -62,8 +64,13 @@ class RecordedSpeech:
         metadata = probe(path)
         if not any(s['codec_type'] == 'audio' for s in metadata['streams']):
             raise RenderError(f'{scene_id}: speech file contains no audio')
-        if float(metadata['format']['duration']) > duration + .001:
+        seconds = float(metadata['format']['duration'])
+        if not math.isfinite(seconds) or seconds <= 0:
+            raise RenderError(f'{scene_id}: speech has invalid duration')
+        if seconds > duration + .001:
             raise RenderError(f'{scene_id}: speech exceeds scene duration; refusing to truncate narration')
+        command(['ffmpeg', '-nostdin', '-v', 'error', '-xerror', '-i', path,
+                 '-map', '0:a:0', '-f', 'null', '-'])
         return path
 
 
