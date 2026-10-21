@@ -16,6 +16,41 @@ import renderer  # noqa: E402
 from book_video_renderer.providers.video import FalH3MaxTurboVideoProvider  # noqa: E402
 
 
+def run_video_preflight(
+    storyboard,
+    output,
+    assets_dir,
+    ai_video_provider="fal-h3-max-turbo",
+    video_budget_usd=None,
+    video_clip_seconds=5,
+):
+    """Perform local-only AI video checks without credentials or network requests."""
+    source = Path(storyboard).expanduser().resolve()
+    output = Path(output).expanduser().resolve()
+    assets_dir = Path(assets_dir).expanduser().resolve() if assets_dir is not None else None
+    if ai_video_provider != "fal-h3-max-turbo":
+        raise renderer.RenderError("--video-preflight-only requires --ai-video-provider fal-h3-max-turbo")
+    if assets_dir is None:
+        raise renderer.RenderError("--video-preflight-only requires --assets-dir")
+    if video_budget_usd is None:
+        raise renderer.RenderError("--video-preflight-only requires --video-budget-usd")
+    data = renderer.load_storyboard(source)
+    provider = FalH3MaxTurboVideoProvider(
+        assets_dir,
+        video_budget_usd,
+        clip_seconds=video_clip_seconds,
+        require_api_key=False,
+    )
+    report = provider.preflight(data["scenes"], output / "video-provider-cache")
+    report["dynamic_scene_ids"] = [
+        scene["id"] for scene in data["scenes"]
+        if scene["visual"]["type"] in ("video", "broll")
+    ]
+    report["network_requests_made"] = 0
+    report["paid_requests_made"] = 0
+    return report
+
+
 def run_pipeline(
     storyboard,
     output,
@@ -210,6 +245,7 @@ def main():
     parser.add_argument("--ai-video-provider", choices=("none", "fal-h3-max-turbo"), default="none", help="Optional paid image-to-video API; default none makes no external video requests")
     parser.add_argument("--video-budget-usd", type=float, help="Required maximum estimated spend for the selected AI video provider")
     parser.add_argument("--video-clip-seconds", type=int, choices=(5, 10), default=5, help="Length of each generated clip before render trims/loops it")
+    parser.add_argument("--video-preflight-only", action="store_true", help="Local-only fal input/cache/budget check; does not require FAL_KEY and makes no network or paid requests")
     parser.add_argument(
         "--tts-provider",
         choices=("none", "edge-tts", "supplied"),
@@ -229,6 +265,20 @@ def main():
     args = parser.parse_args()
 
     try:
+        if args.video_preflight_only:
+            report = run_video_preflight(
+                args.storyboard,
+                args.output,
+                args.assets_dir,
+                ai_video_provider=args.ai_video_provider,
+                video_budget_usd=args.video_budget_usd,
+                video_clip_seconds=args.video_clip_seconds,
+            )
+            print(json.dumps({
+                "status": "preflight_passed",
+                "video_preflight": report,
+            }, ensure_ascii=False, indent=2))
+            return 0
         result = run_pipeline(
             args.storyboard,
             args.output,

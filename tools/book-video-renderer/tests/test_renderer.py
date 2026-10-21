@@ -483,6 +483,33 @@ class UnitTests(unittest.TestCase):
             r.verify_video('bad.mp4', 3, False)
 
 
+    def test_fal_video_preflight_can_run_without_api_key_or_network(self):
+        data = fixture()
+        images = self.root/'fal-preflight-images'
+        images.mkdir()
+        for scene in data['scenes']:
+            if scene['visual']['type'] in ('video', 'broll'):
+                Image.new('RGB', (32, 32), (24, 48, 72)).save(images/(scene['id']+'.png'))
+
+        with patch.dict(os.environ, {}, clear=True):
+            adapter = video_provider.FalH3MaxTurboVideoProvider(
+                images, budget_usd=1.0, clip_seconds=5, require_api_key=False
+            )
+            report = adapter.preflight(data['scenes'], self.root/'fal-preflight-cache')
+
+        self.assertEqual(report['cached_scene_ids'], [])
+        self.assertEqual(report['billable_scene_ids'], ['scene_003', 'scene_004'])
+        self.assertEqual(report['estimated_uncached_clips'], 2)
+        self.assertAlmostEqual(report['estimated_cost_usd'], 0.285)
+        self.assertFalse((self.root/'fal-preflight-cache').exists())
+
+        with patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(
+            r.RenderError, 'FAL_KEY is required before paid'
+        ):
+            adapter.get_or_generate_video(
+                data['scenes'][2], 3.0, self.root/'fal-preflight-cache'/'scene_003'
+            )
+
     def test_fal_video_preflight_enforces_budget_before_any_paid_request(self):
         data = fixture()
         images = self.root/'fal-images'

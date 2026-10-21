@@ -138,11 +138,12 @@ class FalH3MaxTurboVideoProvider:
         budget_usd: float,
         clip_seconds: int = 5,
         resolution: str = "768P",
+        require_api_key: bool = True,
     ):
         self.image_assets_dir = Path(image_assets_dir).expanduser().resolve()
         if not self.image_assets_dir.is_dir():
             raise RenderError(f"Image assets directory does not exist: {self.image_assets_dir}")
-        if not os.environ.get("FAL_KEY"):
+        if require_api_key and not os.environ.get("FAL_KEY"):
             raise RenderError("FAL_KEY is required for --ai-video-provider fal-h3-max-turbo")
         if budget_usd is None or budget_usd <= 0:
             raise RenderError("fal video generation requires a positive --video-budget-usd cap")
@@ -154,6 +155,7 @@ class FalH3MaxTurboVideoProvider:
         self.clip_seconds = int(clip_seconds)
         self.resolution = resolution
         self.cache_key = f"fal:{self.model_id}:{self.resolution}:{self.clip_seconds}:v1"
+        self.require_api_key = bool(require_api_key)
         self.preflight_report = {}
 
     def _image(self, scene):
@@ -245,6 +247,8 @@ class FalH3MaxTurboVideoProvider:
     def get_or_generate_video(self, scene, duration_seconds, workdir):
         if scene["visual"]["type"] not in ("video", "broll"):
             return None
+        if not os.environ.get("FAL_KEY"):
+            raise RenderError("FAL_KEY is required before paid fal video generation")
         image = self._image(scene)
         workdir = Path(workdir).expanduser().resolve()
         cached = self._valid_cache(scene, image, workdir)

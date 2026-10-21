@@ -223,6 +223,62 @@ class PipelineTests(unittest.TestCase):
                 EXAMPLE, self.root / "output", tts_provider="none", force_tts=True
             )
 
+    def test_video_preflight_only_is_local_and_does_not_require_credentials(self):
+        output = self.root / "output"
+        images = self.root / "images"
+        provider = unittest.mock.Mock()
+        provider.preflight.return_value = {
+            "estimated_uncached_clips": 2,
+            "cached_scene_ids": [],
+            "billable_scene_ids": ["scene_002", "scene_003"],
+            "estimated_cost_usd": 0.285,
+            "budget_usd": 0.50,
+        }
+        storyboard = {
+            "scenes": [
+                {"id": "scene_001", "visual": {"type": "title_card"}},
+                {"id": "scene_002", "visual": {"type": "broll"}},
+                {"id": "scene_003", "visual": {"type": "video"}},
+            ]
+        }
+        with patch.object(pipeline.renderer, "load_storyboard", return_value=storyboard), patch.object(
+            pipeline, "FalH3MaxTurboVideoProvider", return_value=provider
+        ) as create_provider, patch.object(pipeline.renderer, "render") as render:
+            report = pipeline.run_video_preflight(
+                EXAMPLE,
+                output,
+                images,
+                ai_video_provider="fal-h3-max-turbo",
+                video_budget_usd=0.50,
+                video_clip_seconds=5,
+            )
+
+        create_provider.assert_called_once_with(
+            images.resolve(), 0.50, clip_seconds=5, require_api_key=False
+        )
+        provider.preflight.assert_called_once_with(
+            storyboard["scenes"], output.resolve() / "video-provider-cache"
+        )
+        render.assert_not_called()
+        self.assertEqual(report["dynamic_scene_ids"], ["scene_002", "scene_003"])
+        self.assertEqual(report["network_requests_made"], 0)
+        self.assertEqual(report["paid_requests_made"], 0)
+
+    def test_video_preflight_only_requires_explicit_local_inputs_and_budget(self):
+        with self.assertRaisesRegex(pipeline.renderer.RenderError, "--assets-dir"):
+            pipeline.run_video_preflight(
+                EXAMPLE,
+                self.root / "output",
+                None,
+                video_budget_usd=0.50,
+            )
+        with self.assertRaisesRegex(pipeline.renderer.RenderError, "--video-budget-usd"):
+            pipeline.run_video_preflight(
+                EXAMPLE,
+                self.root / "output",
+                self.root / "images",
+            )
+
     def test_external_subtitles_cannot_override_edge_tts_alignment(self):
         with self.assertRaisesRegex(pipeline.renderer.RenderError, "--subtitle-file cannot be combined"):
             pipeline.run_pipeline(

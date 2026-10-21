@@ -53,6 +53,59 @@ jobs:
           echo "Using CJK font: $FONT"
           test -n "$FONT"
           BOOK_VIDEO_FONT="$FONT" python -m unittest discover -s tools/book-video-renderer/tests -v
+      - name: Run zero-cost Naval video preflight smoke test
+        shell: bash
+        run: |
+          rm -rf /tmp/naval-video-preflight
+          mkdir -p /tmp/naval-video-preflight/images
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+
+          storyboard = json.loads(
+              Path("examples/book-video/naval-test-001/storyboard.json").read_text(encoding="utf-8")
+          )
+          dynamic = [
+              scene["id"] for scene in storyboard["scenes"]
+              if scene["visual"]["type"] in ("video", "broll")
+          ]
+          assert dynamic == [
+              "scene_002", "scene_003", "scene_004", "scene_005",
+              "scene_006", "scene_007", "scene_008", "scene_009",
+          ]
+          for index, scene_id in enumerate(dynamic):
+              Image.new("RGB", (64, 64), (20 + index * 10, 40, 80)).save(
+                  Path("/tmp/naval-video-preflight/images") / f"{scene_id}.png"
+              )
+          print(f"Prepared {len(dynamic)} synthetic source-image fixtures for local preflight only.")
+          PY
+          unset FAL_KEY
+          python tools/book-video-renderer/pipeline.py \
+            examples/book-video/naval-test-001/storyboard.json \
+            --output /tmp/naval-video-preflight/output \
+            --assets-dir /tmp/naval-video-preflight/images \
+            --ai-video-provider fal-h3-max-turbo \
+            --video-budget-usd 1.20 \
+            --video-clip-seconds 5 \
+            --video-preflight-only | tee /tmp/naval-video-preflight/report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("/tmp/naval-video-preflight/report.json").read_text())
+          video = report["video_preflight"]
+          assert report["status"] == "preflight_passed"
+          assert video["dynamic_scene_ids"] == [
+              "scene_002", "scene_003", "scene_004", "scene_005",
+              "scene_006", "scene_007", "scene_008", "scene_009",
+          ]
+          assert video["estimated_uncached_clips"] == 8
+          assert video["network_requests_made"] == 0
+          assert video["paid_requests_made"] == 0
+          assert video["estimated_cost_usd"] == 1.14
+          assert video["budget_usd"] == 1.20
+          print(json.dumps(video, ensure_ascii=False, indent=2))
+          PY
 
   render-tts-sample:
     if: github.event_name == 'workflow_dispatch' && inputs.render_tts_sample
