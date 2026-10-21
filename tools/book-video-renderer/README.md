@@ -67,9 +67,7 @@ separates `cli`, `models`, `validator`, `renderer`, `scene`, `ffmpeg`, `fonts`,
   being cut. Add CLI selection when a real provider is chosen; keep credentials in
   environment/configuration outside source control. `RecordedSpeech` already accepts
   caller-supplied WAV files. No paid or external-account provider was used for MVP validation.
-- `ImageProvider.generate_image` and `VideoProvider.generate_video` define the visual
-  boundary. Local placeholder/static adapters implement the current path; a real
-  adapter can replace them at `prepare_visual`. Real video clip ingestion is future work.
+- `ImageProvider.generate_image` defines the still-image boundary. `VideoProvider.get_or_generate_video(scene, duration_seconds, workdir)` defines the dynamic-footage boundary; `SuppliedVideoProvider` currently ingests caller-provided clips. An AI-video adapter can implement the same protocol later and must cache requests by scene prompt and provider/model configuration.
 - `MusicProvider.get_or_generate_music` defines the music boundary; `NoMusic` returns
   `None`. Local, properly licensed files remain optional through `--music-file`.
 
@@ -82,7 +80,7 @@ storyboard target. QC is printed by the CLI and saved under `manifest.qc`.
 `unburned.mp4` is retained for diagnosis even on successful runs.
 
 
-Python CLI for the repository's locked storyboard contract. It validates the existing JSON Schema, preserves scene order and exact narration/on-screen text, accepts optional per-scene AI-generated still images, falls back to labeled placeholder cards for missing images, adds gentle push-in motion, creates Chinese SRT subtitles, burns them into the final video, and verifies output with ffprobe. The CLI does not itself call an image-generation API; the agent or user supplies generated images.
+Python CLI for the repository's locked storyboard contract. It validates the existing JSON Schema, preserves scene order and exact narration/on-screen text, accepts optional per-scene still images and real motion clips, applies gentle push-in motion only to stills, creates Chinese SRT subtitles, burns them into the final video, and verifies output with ffprobe. The CLI does not itself call an image- or AI-video-generation API; the agent or user supplies generated assets.
 
 ## Setup
 
@@ -108,7 +106,7 @@ Optional: `--font /path/to/NotoSansCJKsc-Regular.otf`, `--attempts 3` (1–10).
 
 ### One-command pipeline (recommended for narrated videos)
 
-Generate the per-scene stills first and save them under `output/naval-test-001/images/`. The pipeline then pre-synthesizes narration, measures actual speech duration, builds aligned subtitles, and renders the final video in one command:
+Generate the per-scene stills under `output/naval-test-001/images/` and real MP4 clips for each `video`/`broll` scene under `output/naval-test-001/videos/`. The pipeline then pre-synthesizes narration, measures actual speech duration, builds aligned subtitles, and renders the final video in one command. `--require-video-assets` prevents accidental still-image fallback:
 
 ```bash
 python -m pip install -r tools/book-video-renderer/requirements-tts-edge.txt
@@ -116,6 +114,8 @@ python tools/book-video-renderer/pipeline.py \
   examples/book-video/naval-test-001/storyboard.json \
   --output output/naval-test-001 \
   --assets-dir output/naval-test-001/images \
+  --video-assets-dir output/naval-test-001/videos \
+  --require-video-assets \
   --tts-provider edge-tts \
   --tts-voice zh-CN-YunxiNeural \
   --music-file output/naval-test-001/music.mp3
