@@ -409,5 +409,4 @@ requests may have been billed. Actual cost remains null without vendor evidence;
 local configured pricing/overhead is an estimate, not a provider billing cap.
 
 This task executes no real fal or Edge TTS request. Mock fal and local synthetic
-motion/test-tone integration results are code tests only. Real service/model/
-SDK retry/billing behavior remains unverified until separately authorized.
+motion/test-tone integration results are code tests only. fal-client 1.0.3 was source-audited: its queue POST retries can multiply submissions. Inference now bypasses subscribe using one non-redirecting, non-retrying authenticated queue POST and GET-only polling; its request ID is persisted before waiting. SDK upload storage retries cannot resubmit inference. Live service/model/rate/billing remains unverified until separately authorized.

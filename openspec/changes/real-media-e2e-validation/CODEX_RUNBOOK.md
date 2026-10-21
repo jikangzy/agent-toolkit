@@ -85,8 +85,7 @@ lock, missing result, failed download/decode or uncertain response requires
 manual service-result/billing reconciliation before any retry. Preserve a valid
 successful scene_002 cache if scene_003 fails. Actual billing remains unknown
 without trustworthy vendor evidence; local caps are conservative estimates,
-not a provider-enforced monetary ceiling. SDK internal retry behavior and live
-model availability must be reviewed before granting/executing this gate.
+not a provider-enforced monetary ceiling. The audited fal-client 1.0.3 retries queue POSTs up to 10 times. Inference now bypasses subscribe: exactly one authenticated HTTPS queue POST, redirects refused, no submission retry, request ID saved immediately, followed by GET-only polling. Upload SDK may retry storage transfers, not inference. Live model availability/rate/service billing still requires review before execution.
 
 ## 5. Automatic post-generation audit (local only, ready but not real-run)
 

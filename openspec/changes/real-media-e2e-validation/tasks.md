@@ -13,7 +13,7 @@
 - [x] 视频和最终成片 QC 增加完整 FFmpeg 解码；Manifest 追踪 Provider、输入图 hash、输出 hash、缓存、失败和 title card。
 - [x] supplied WAV 完整解码；保留 narration，修正 supplied-audio 来源标签；保留既有时长/字幕/Edge mock 测试。
 - [x] 准备付费生成后的自动来源/QC 审计命令；mock fal + 本地合成视频集成验证（不是真实 fal 验收）。
-- [x] 最新代码完整 compile/unit/FFmpeg 回归全部通过：82 tests，0 failures/errors/skips（见 test-results.json）。
+- [x] 最新代码完整 compile/unit/FFmpeg 回归全部通过：86 tests，0 failures/errors/skips（见 test-results.json）。
 - [ ] 本工作分支 PR CI 通过，并提供运行链接和证据 artifact。
 - [x] 提交并推送工作分支，创建目标 main 的 PR #24；阶段报告持续同步 Issue #23。
 

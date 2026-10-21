@@ -116,7 +116,7 @@ claim about formal source images, without changing historical test records.
 
 | Level | Current status | Evidence and boundary |
 | --- | --- | --- |
-| LEVEL 1 — CODE / CI | Local frozen-source 82-test full FFmpeg run PASS, 0 skips; PR CI tracked in RUN_REPORT | Includes mock fal/Edge, actual local video decode/render, supplied WAV/test tones and cache/manifest recovery; not live service acceptance |
+| LEVEL 1 — CODE / CI | Local frozen-source 86-test full FFmpeg run PASS, 0 skips; PR CI tracked in RUN_REPORT | Includes mock fal/Edge, actual local video decode/render, supplied WAV/test tones and cache/manifest recovery; not live service acceptance |
 | LEVEL 2 — SOURCE IMAGES / PREFLIGHT | PASS | 8/8 main Git-tree originals, 941×1672 RGB PNG, full decode/hash; guarded eight/two-scene CLI reports with 0 external generation requests |
 | LEVEL 3 — TWO-SCENE REAL MOTION | NOT RUN — PAID AUTHORIZATION REQUIRED | No real fal clips or narrated two-scene output. Mock/synthetic integration is not promoted to this level |
 | LEVEL 4 — FULL EIGHT-SCENE REAL MOTION | NOT RUN — PAID AUTHORIZATION REQUIRED | No 8/8 actual Provider output or narrated 10-scene acceptance |

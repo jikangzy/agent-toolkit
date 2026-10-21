@@ -51,6 +51,18 @@
 - FAL_KEY: missing. Two-scene/full-eight authorization: NOT GRANTED. NO PAID GENERATION EXECUTED.
 - Real-motion and narrated acceptance remain NOT RUN. Next: finish frozen-code test evidence, structural OpenSpec check, PR/CI and final packet. No paid action is pending execution in this task.
 
+## Stage E — SDK retry audit and single-submission repair: PASS (offline automation)
+
+- Fresh main remains 04edeff096fec139880b5bcbe1fdf91663dc4ff4; branch feat/naval-real-media-e2e-validation; start at same main; current committed HEAD ca9848b5ba9d36bedf224e55ad886ba060e09b31 (2 ahead/0 behind), with narrowly scoped SDK repair uncommitted.
+- Prior PR CI runs 39617580937 and 39617811274 completed SUCCESS for the 82-test executable snapshot; no live Edge job ran. New SDK repair must pass its own full regression/CI.
+- Command: python -m pip download --no-deps -r tools/book-video-renderer/requirements-video-fal.txt -d output/naval-e2e/dependencies. Downloaded SDK 1.0.3 only (not executed with credentials), wheel SHA-256 b98f97d90d434c5cf7a39afd5ac82a732e7ec750f163a613c842fb5052c653ed.
+- Source finding: fal_client/client.py MAX_ATTEMPTS=10; queue submit POST goes through _maybe_retry_request. One subscribe invocation therefore did not imply one HTTP submission.
+- Repair: SDK retained for image storage upload only; inference uses exactly one urllib HTTPS POST to fixed queue.fal.run/model, denies authenticated redirects/other hosts, persists real queue request_id immediately, polls status/result via GET only. No retry of submission or result failure. Durable reservations remain on failure.
+- Four new HTTP-boundary tests PASS: one POST + GET polling, no retry on transport error, credential not forwarded to untrusted receipt URL, redirects refused. Existing failure test now checks request ID survives failure and restart. All external boundaries are mocked in these tests.
+- Fresh full/two guarded formal-source preflights PASS again, unchanged estimates 1.14/1.20 and .285/.40. Cache empty; uploads/network/paid/generation attempts all 0.
+- Evidence: validation/fal-sdk-audit.json; output/naval-e2e/queue-regression.log; latest full regression updates validation/test-results.json. No genuine clip or Provider/narration E2E claimed.
+- Generation/TTS external requests 0; paid 0; separate SDK distribution download and GitHub requests occurred. FAL_KEY missing, authorization NOT GRANTED. Frozen-source 86-test run: PASS, 0 failures/errors/skips, 122.219s. Next: commit/push, latest-head CI and final packet.
+
 # FINAL REVIEW PACKET
 
 ## 1. Overall Status
@@ -62,11 +74,11 @@ BLOCKED — PAID AUTHORIZATION REQUIRED. NO PAID GENERATION EXECUTED.
 
 - Repository jikangzy/agent-toolkit; base main; fresh initial main and work base `04edeff096fec139880b5bcbe1fdf91663dc4ff4`.
 - Work branch `feat/naval-real-media-e2e-validation`.
-- Executable validation commit: ded3ec84763ad9a97ce555a0f3d1f4383c039217.
-- Current HEAD at report preparation: ded3ec84763ad9a97ce555a0f3d1f4383c039217.
-- Relative main: 1 commit ahead, 0 behind at submission; 28 task-related files.
-- Worktree: tracked clean after code commit; only untracked user attachment, ignored local evidence/dependencies/caches preserved.
-- PR: https://github.com/jikangzy/agent-toolkit/pull/24; CI: https://github.com/jikangzy/agent-toolkit/actions/runs/39617580937 (QUEUED (code commit; not yet PASS)).
+- Executable validation commit: c3ea61bea208c45032bad7b257c3e9b3509e60bc.
+- Current HEAD at report preparation: c3ea61bea208c45032bad7b257c3e9b3509e60bc.
+- Relative main: 3 commits ahead / 0 behind before final report revision.
+- Worktree: only task-related report/docs updates; user attachment preserved untracked.
+- PR: https://github.com/jikangzy/agent-toolkit/pull/24; CI: https://github.com/jikangzy/agent-toolkit/actions/runs/39617811274 (Prior 82-test snapshots SUCCESS; new 86-test executable revision awaiting push/CI).
 - Exact final report-only commit is the PR head and is also published to Issue #23; a committed report cannot embed its own future object hash. Tested Python file hashes bind the executable revision independently of report-only commits.
 
 ## 3. OpenSpec
@@ -135,7 +147,7 @@ Two-scene authorization NOT GRANTED; full-eight authorization NOT GRANTED.
 Actual paid requests 0; estimated incurred spend 0. Confirmed vendor charge:
 not queried/no billing evidence. Nominal budget proposal .40 unspent; actual
 authorized spend NONE. Real request ledger absent. NO PAID GENERATION EXECUTED.
-Before any future spend verify live model/rate/SDK retry/service constraints;
+SDK 1.0.3 POST retry risk was audited and bypassed for inference: one authenticated POST, no redirects/retry, then GET-only polling with request ID saved before waiting. Before any future spend verify live model/rate/service constraints;
 local estimate caps do not enforce vendor charges. Keep cache root unchanged;
 uncertain/failed submissions retain reservations and require manual result/billing
 reconciliation. Accurate prepared generation and post-QC commands: CODEX_RUNBOOK.md.
@@ -187,12 +199,12 @@ genuine narrated E2E acceptance.
 ## 12. Tests and CI
 
 - Compile PASS: python -m compileall -q tools/book-video-renderer.
-- Full frozen-source local suite: 82 PASS, 0 failures/errors/skips, 119.938s, Python 3.12.1, FFmpeg 9.0.2 + YaHei.
+- Full frozen-source local suite: 86 PASS, 0 failures/errors/skips, 122.219s, Python 3.12.1, FFmpeg 9.0.2 + YaHei.
 - CLI/Pipeline/Provider/TTS/Renderer/Manifest/cache/source/fixture/preflight/supplied WAV/real FFmpeg integration included; per-test IDs and canonical tested-source hashes in validation/test-results.json; full log output/naval-e2e/review-regression.log.
 - Prior missing dependency/socketpair/Windows alias/title-card assertion failures fixed and rerun; no deleted tests or added skips.
 - OpenSpec structural/evidence/paid-boundary check PASS (check_e2e_contract.py). Official upstream OpenSpec CLI NOT RUN: not installed/configured here; not falsely counted as a pass.
 - Workflow YAML parse, CLI --help and git diff --check PASS.
-- CI: QUEUED (code commit; not yet PASS); https://github.com/jikangzy/agent-toolkit/actions/runs/39617580937. CI uses formal PNGs, guarded preflight and full local suite; live Edge job remains opt-in and not executed. Artifact: naval-zero-cost-evidence.
+- CI: Prior 82-test snapshots SUCCESS; new 86-test executable revision awaiting push/CI; https://github.com/jikangzy/agent-toolkit/actions/runs/39617811274. CI uses formal PNGs, guarded preflight and full local suite; live Edge job remains opt-in and not executed. Artifact: naval-zero-cost-evidence.
 - GitHub/dependency download traffic occurred; global network count was not instrumented. Zero request claims above refer only to guarded preflights and generation/TTS boundaries.
 
 ## 13. Proven Claims
@@ -205,12 +217,12 @@ Budget/cache/provenance/QC behaviors proved within offline/mock/local-test scope
 ## 14. Not Yet Proven
 
 F genuine fal output; G genuine Provider clip enters Renderer; H real narrated
-two-scene E2E; I full-eight/10-scene real narrated E2E. Live SDK/model/rate/billing,
+two-scene E2E; I full-eight/10-scene real narrated E2E. Live service/model/rate/billing,
 voice quality and independent service evidence remain unverified.
 
 ## 15. Remaining Blockers
 
-Missing FAL_KEY and specific paid authorization; live monetary-cap/SDK retry/model
+Missing FAL_KEY and specific paid authorization; live monetary-cap/model
 behavior requires review before spend; actual narration source or explicit external
 TTS permission absent. These block real media only; all feasible local prep/docs/
 tests/PR/CI work is carried forward. Do not close Change as media-complete.
@@ -218,7 +230,7 @@ tests/PR/CI work is carried forward. Do not close Change as media-complete.
 ## 16. Next Recommended Action
 
 Review PR/evidence. If proceeding later, privately supply credential, verify live
-service/budget/retry constraints, authorize only scene_002/003 (5s, max2, cap .40,
+service/budget constraints, authorize only scene_002/003 (5s, max2, cap .40,
 current estimate .285), fresh-preflight the same cache root, then run the prepared
 command and local auditor, retaining receipts and genuine audio evidence.
 Separate six-scene/full-scope permission is required for expansion. No paid action

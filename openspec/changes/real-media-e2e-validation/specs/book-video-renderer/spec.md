@@ -126,3 +126,11 @@ Video cache reuse MUST verify the input fingerprint, source image hash, Provider
 ## Requirement: honest validation levels
 
 CODE/CI, SOURCE/PREFLIGHT, TWO-SCENE REAL MOTION and FULL EIGHT-SCENE REAL MOTION MUST be reported independently. Mock service tests, local synthetic clips and supplied test tones MUST be labeled test evidence only. No real-service or narrated end-to-end PASS may be inferred from these tests.
+
+### Scenario: SDK submission retry risk
+
+- GIVEN an SDK that retries queue POSTs internally
+- WHEN the adapter submits a paid inference
+- THEN it MUST use exactly one non-retrying POST with redirects refused
+- AND it MUST persist the request ID before GET-only status/result polling
+- AND a transport error or unexpected receipt URL MUST NOT cause another submission or forward the credential to another host.
