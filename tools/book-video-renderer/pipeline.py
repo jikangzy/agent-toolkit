@@ -67,6 +67,12 @@ def run_pipeline(
         )
         return {"manifest": manifest, "narration_preflight": None}
 
+    if tts_provider == "edge-tts" and subtitle_file is not None:
+        raise renderer.RenderError(
+            "--subtitle-file cannot be combined with --tts-provider edge-tts; "
+            "the narration preflight generates aligned-subtitles.srt"
+        )
+
     # Validate local inputs before doing any expensive or external work.
     data = renderer.load_storyboard(source)
     renderer.resolve_music(data, music_file, music_volume_db)
@@ -126,12 +132,6 @@ def run_pipeline(
             subtitle_file=subtitle_file,
         )
         return {"manifest": manifest, "narration_preflight": supplied_report}
-
-    if subtitle_file is not None:
-        raise renderer.RenderError(
-            "--subtitle-file cannot be combined with --tts-provider edge-tts; "
-            "the narration preflight generates aligned-subtitles.srt"
-        )
 
     voice_id = tts_voice or "zh-CN-YunxiNeural"
     audio_dir = work_dir / "audio"
