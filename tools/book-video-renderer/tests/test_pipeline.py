@@ -30,11 +30,13 @@ class PipelineTests(unittest.TestCase):
     def test_offline_mode_skips_narration_preflight(self):
         output = self.root / "output"
         images = self.root / "images"
+        videos = self.root / "videos"
         with patch.object(pipeline.renderer, "render", return_value=self.manifest) as render, patch.object(
             pipeline.prepare_narration, "prepare"
         ) as prepare:
             result = pipeline.run_pipeline(
-                EXAMPLE, output, assets_dir=images, tts_provider="none"
+                EXAMPLE, output, assets_dir=images, video_assets_dir=videos,
+                require_video_assets=True, tts_provider="none"
             )
 
         prepare.assert_not_called()
@@ -42,6 +44,8 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(args[0], EXAMPLE.resolve())
         self.assertEqual(args[1], output.resolve())
         self.assertEqual(kwargs["assets_dir"], images.resolve())
+        self.assertEqual(kwargs["video_assets_dir"], videos.resolve())
+        self.assertTrue(kwargs["require_video_assets"])
         self.assertIsNone(result["narration_preflight"])
 
     def test_edge_tts_mode_runs_preflight_then_uses_aligned_subtitles(self):
