@@ -164,6 +164,24 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 'Program-generated placeholder visuals used for scenes without supplied image or video assets: '
                 + ', '.join(missing_assets)
             )
+        video_scene_ids = [
+            scene['id'] for scene in data['scenes']
+            if scene['visual']['type'] in ('video', 'broll')
+        ]
+        missing_video_scenes = [
+            scene_id for scene_id in video_scene_ids if video_assets[scene_id] is None
+        ]
+        manifest['video_coverage'] = {
+            'eligible_scene_count': len(video_scene_ids),
+            'clips_supplied': len(video_scene_ids) - len(missing_video_scenes),
+            'missing_clip_scene_ids': missing_video_scenes,
+            'required': bool(require_video_assets),
+        }
+        if missing_video_scenes:
+            manifest['fallbacks'].append(
+                'Static image/placeholder fallback used for video/broll scenes without real motion clips: '
+                + ', '.join(missing_video_scenes)
+            )
         if video_provider is not None:
             manifest['provider_notes'] = manifest.get('provider_notes', [])
             manifest['provider_notes'].append(
