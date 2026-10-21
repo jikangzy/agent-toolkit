@@ -68,6 +68,8 @@ python tools/book-video-renderer/pipeline.py \
   examples/book-video/naval-test-001/storyboard.json \
   --output output/<run-id> \
   --assets-dir output/<run-id>/images \
+  --video-assets-dir output/<run-id>/videos \
+  --require-video-assets \
   --tts-provider edge-tts \
   --tts-voice zh-CN-YunxiNeural \
   --music-file output/<run-id>/music.mp3
@@ -89,6 +91,8 @@ python tools/book-video-renderer/renderer.py \
   .local/runs/<run-id>/storyboard.render.json \
   --output output/<run-id> \
   --assets-dir output/<run-id>/images \
+  --video-assets-dir output/<run-id>/videos \
+  --require-video-assets \
   --tts-audio-dir output/<run-id>/audio \
   --tts-audio-provider edge-tts \
   --tts-audio-voice zh-CN-YunxiNeural \
