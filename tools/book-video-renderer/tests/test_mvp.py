@@ -103,8 +103,10 @@ class MVPTests(unittest.TestCase):
         original = source.read_bytes()
         output = self.root/'output'
         assets = self.root/'assets'
+        videos = self.root/'videos'
         audio = self.root/'audio'
         assets.mkdir()
+        videos.mkdir()
         audio.mkdir()
         sample_rate = 16000
 
@@ -131,6 +133,15 @@ class MVPTests(unittest.TestCase):
             Image.new('RGB', (320, 568), (25 + index * 20, 45, 80)).save(
                 assets/(scene['id'] + '.png')
             )
+            if index == 0:
+                # Synthetic moving test clip proves the real-video input path;
+                # this fixture is not claimed to be AI-generated footage.
+                subprocess.run([
+                    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
+                    '-f', 'lavfi', '-i', 'testsrc2=size=320x568:rate=24:duration=2.5',
+                    '-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+                    str(videos/(scene['id'] + '.mp4')),
+                ], check=True)
             # Synthetic local audio fixtures exercise the supplied-audio path;
             # they are test tones, not claimed to be human speech or TTS output.
             write_tone(audio/(scene['id'] + '.wav'), 2.5, 220 + index * 35)
@@ -147,7 +158,7 @@ class MVPTests(unittest.TestCase):
 
         result = render(
             source, output, FONT, attempts=1,
-            speech_dir=audio, assets_dir=assets,
+            speech_dir=audio, assets_dir=assets, video_assets_dir=videos,
             music_file=music, subtitle_file=subtitle_file,
         )
 
@@ -160,6 +171,9 @@ class MVPTests(unittest.TestCase):
         self.assertEqual(result['qc']['scene_count'], len(data['scenes']))
         self.assertTrue(all(scene['audio'] for scene in result['scenes']))
         self.assertTrue(all(not scene['placeholder'] for scene in result['scenes']))
+        self.assertEqual(result['scenes'][0]['video_asset'], 'scene_001.mp4')
+        self.assertIsNone(result['scenes'][0]['visual_asset'])
+        self.assertTrue(all(scene['video_asset'] is None for scene in result['scenes'][1:]))
         self.assertFalse(any('Program-generated placeholder visuals' in item for item in result['fallbacks']))
         self.assertFalse(any('background music omitted' in item for item in result['fallbacks']))
         self.assertFalse(any('scene-proportional timing' in item for item in result['fallbacks']))
@@ -173,7 +187,7 @@ class MVPTests(unittest.TestCase):
         # A second identical run must reuse every scene clip without a provider call.
         cached = render(
             source, output, FONT, attempts=1,
-            speech_dir=audio, assets_dir=assets,
+            speech_dir=audio, assets_dir=assets, video_assets_dir=videos,
             music_file=music, subtitle_file=subtitle_file,
         )
         self.assertTrue(all(scene['cache_hit'] for scene in cached['scenes']))
