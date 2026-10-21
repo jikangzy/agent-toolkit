@@ -98,6 +98,11 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 provider = NoTTS()
         video_assets = {}
         video_asset_info = {}
+        video_generation_report = None
+        if video_provider is not None and callable(getattr(video_provider, 'preflight', None)):
+            video_generation_report = video_provider.preflight(
+                data['scenes'], output/'video-provider-cache'
+            )
         if video_provider is not None:
             for scene in data['scenes']:
                 # b-roll/video scenes are the explicit dynamic-footage boundary.
@@ -140,6 +145,8 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                         video_provider=getattr(video_provider, 'provider_name', None),
                         video_assets_supplied=video_provider is not None,
                         require_video_assets=require_video_assets)
+        if video_generation_report is not None:
+            manifest['video_generation'] = video_generation_report
         missing_assets = [
             scene['id'] for scene in data['scenes']
             if visual_assets[scene['id']] is None and video_assets[scene['id']] is None
