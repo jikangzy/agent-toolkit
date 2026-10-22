@@ -79,3 +79,58 @@
 - THEN manifest 记录 provider 和 voice
 - AND timing report 记录字幕对齐方法
 - AND 源 narration 不被改写或截断
+
+## Requirement: preserved source IDs and formal PNG evidence
+
+A two-scene derived fixture MUST preserve every field of scene_002 and scene_003. The original storyboard MUST NOT change. The validator MUST accept contiguous positive IDs beginning at the first preserved source ID, while rejecting gaps, zero IDs, duplicates and reordering. Formal PNG reports MUST bind a fresh remote main Git tree and blob to each decoded local image; checkout newline differences in JSON MUST be disclosed with separate byte hashes.
+
+### Scenario: offline formal-source preflight
+
+- GIVEN the eight checked-in original PNGs and no FAL_KEY
+- WHEN full and preserved-ID two-scene CLI preflights run under network/upload guards
+- THEN measured connection/upload/generation attempts MUST be zero
+- AND complete outputs MUST record scope, cached/billable scenes, configured per-clip estimate, total and cap
+- AND the CI MUST use the formal PNGs instead of synthetic replacement source images.
+
+## Requirement: durable request accounting and uncertain failures
+
+Budget estimates MUST use the configured model rate and duration overhead. Nonfinite/nonpositive caps MUST fail closed. Each paid attempt MUST reserve its conservative estimated cost durably before external submission. A lock MUST prevent concurrent writers to the same request ledger. Failed or uncertain attempts MUST retain their reservation across restarts, and MUST NOT be automatically resubmitted. Changing the output/cache root is not a permitted retry mechanism. Service billing can differ from local estimates; actual cost MUST remain unknown until independently supported by billing evidence.
+
+### Scenario: uncertain API error
+
+- GIVEN a submitted request that errors or produces an invalid/missing result
+- WHEN the run restarts with identical input and no valid cache
+- THEN preflight/generation MUST require manual result/billing reconciliation
+- AND no automatic paid retry may occur
+- AND errors/ledger/manifest MUST NOT expose the credential.
+
+## Requirement: validated cache and auditable visual origin
+
+Video cache reuse MUST verify the input fingerprint, source image hash, Provider/model/origin, output SHA-256, positive finite duration, codec/dimensions/FPS and full FFmpeg decode. Headers or an MP4 suffix alone are insufficient. A missing optional request ID MUST NOT be invented. A successful local audit MUST NOT be presented as external service or billing verification.
+
+### Scenario: corrupt or incomplete cache
+
+- GIVEN matching input metadata but an undecodable clip or missing provenance
+- WHEN preflight checks the cache
+- THEN it MUST NOT count a cache hit
+- AND any existing request reservation MUST prevent an implicit repeat charge.
+
+### Scenario: renderer provenance
+
+- GIVEN a validated Provider output or verified cached clip
+- WHEN Renderer consumes it
+- THEN manifest MUST bind source image/input fingerprint/clip hash to the actual video_asset_path and encoded scene hash
+- AND distinguish generated, cached, supplied video, title_card, static image, fallback, provider_failed, invalid output and not_generated
+- AND final QC MUST fully decode the output.
+
+## Requirement: honest validation levels
+
+CODE/CI, SOURCE/PREFLIGHT, TWO-SCENE REAL MOTION and FULL EIGHT-SCENE REAL MOTION MUST be reported independently. Mock service tests, local synthetic clips and supplied test tones MUST be labeled test evidence only. No real-service or narrated end-to-end PASS may be inferred from these tests.
+
+### Scenario: SDK submission retry risk
+
+- GIVEN an SDK that retries queue POSTs internally
+- WHEN the adapter submits a paid inference
+- THEN it MUST use exactly one non-retrying POST with redirects refused
+- AND it MUST persist the request ID before GET-only status/result polling
+- AND a transport error or unexpected receipt URL MUST NOT cause another submission or forward the credential to another host.

@@ -4,7 +4,7 @@
 
 Book Video Renderer 已具备稳定的离线渲染、字幕、缓存、QC、可选 Edge TTS，以及可选 fal.ai 图生视频 Provider。Naval 样例在最新 main 中将 8/10 个非标题场景声明为 `broll` 或 `video`，但仓库只提交了 storyboard，没有提交对应源图或真实视频资产，因此不能仅凭场景类型宣称已经生成真实动态视频。
 
-当前 fal Provider 需要显式预算上限，并会在真正生成前执行输入和预算预检；但 Provider 构造阶段即要求 `FAL_KEY`，不利于在完全无凭证、无网络、零付费条件下执行 dry-run 验证。
+当前 fal Provider 需要显式预算上限，并会在真正生成前执行输入和预算预检；已存在 require_api_key=False 的零网络 preflight 路径。本轮补齐正式源图验证、保留 ID 的派生配置、持久化预算保护、完整解码和来源证据。
 
 ## 目标
 
@@ -25,7 +25,7 @@ Book Video Renderer 已具备稳定的离线渲染、字幕、缓存、QC、可�
 
 ## 当前基线（2026-10-21）
 
-- main: `7a2573421bc41a1387bf0d8d972b5d28ed398d95`
+- 本轮基准 origin/main: `04edeff096fec139880b5bcbe1fdf91663dc4ff4`；实际 fresh 检查见 RUN_REPORT.md。
 - Naval: 10 scenes，其中 scene_002–scene_009 共 8 个动态场景；scene_001/010 为 title_card。
-- 仓库中的 Naval 示例目录当前只有 `storyboard.json`，没有提交真实图片或视频资产。
+- 正式源图 scene_002.png 至 scene_009.png 已在远端 main 验证；没有真实 Provider 视频资产。源图记录见 validation/source-images-report.json。
 - 最新 main 的 Book Video Renderer CI 已通过；常规 CI 不运行在线 Edge TTS sample，也不应运行付费 fal 生成。

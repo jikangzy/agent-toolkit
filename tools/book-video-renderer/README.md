@@ -32,7 +32,7 @@ it never labels silence as synthesized speech. Real narration produces AAC audio
 uses gentle push-in for stills; transitions currently use cuts.
 
 Validation uses the shared schema and requires unique, contiguous scene IDs in
-original order (`scene_001`, `scene_002`, ...). Invalid order fails; it is never sorted.
+original order (positive contiguous IDs; derived slices may preserve `scene_002`, `scene_003`, ...). Invalid order fails; it is never sorted.
 Scene durations are rounded per frame and summed without editing the input. The
 Naval example produces 113 seconds (10 scenes), within 8% of its declared 120 seconds.
 
@@ -363,7 +363,7 @@ Provide `scene_001.wav` through `scene_010.wav`, each matching its scene's exact
 
 ## Retry, resume and failure behavior
 
-Scene cache keys include the complete scene, voice/provider key, renderer package source hash, font hash and FFmpeg version. Cache hits require a matching SHA-256 and passing ffprobe checks. Changed/corrupt assets are rebuilt independently; successful scene caches survive retries and restarts. SRT/final assembly are regenerated on each run. Failures retry up to `--attempts` with bounded exponential backoff. Errors/attempts and scene states are persisted in the manifest. Validation/dependency errors are not retried.
+Scene cache keys include the complete scene, voice/provider key, renderer package source hash, font hash and FFmpeg version. Cache hits require a matching SHA-256 and passing ffprobe checks. Changed/corrupt assets are rebuilt independently; successful scene caches survive retries and restarts. SRT/final assembly are regenerated on each run. Local scene encoding/assembly failures retry up to `--attempts` with bounded exponential backoff. Paid video requests are outside that retry loop and use a durable reservation ledger; uncertain failures require manual reconciliation rather than automatic resubmission. Errors/attempts and scene states are persisted in the manifest. Validation/dependency errors are not retried.
 
 The final MP4 is verified before atomic replacement. On failure the CLI exits nonzero and records a failed manifest; any older `final.mp4` is not proof that the new run succeeded. Use manifest status and final SHA-256 to identify a successful run. Run one process per output directory.
 
@@ -379,3 +379,34 @@ BOOK_VIDEO_FONT=/path/to/NotoSansCJKsc-Regular.otf \
 ```
 
 Integration tests cover every visual type, AAC encoding, oversized audio rejection, source immutability, real cache reuse and corrupt-cache recovery. Synthetic sine audio is used only as a codec test fixture, never in the Naval video or as narration. See [VALIDATION.md](VALIDATION.md) for the cloud execution evidence and limitations.
+
+
+## Naval formal-source E2E preparation (zero paid requests)
+
+The current runbook is `openspec/changes/real-media-e2e-validation/CODEX_RUNBOOK.md`;
+RUN_REPORT.md is the staged evidence record. Original source PNGs are checked in
+under `examples/book-video/naval-test-001/source-images/`. Do not replace them.
+
+`validate_naval.py` verifies the fetched main blobs, full PNG decode/hash and
+creates the exact preserved-ID two-scene fixture under `validation/`.
+`offline_preflight.py` invokes the actual Pipeline CLI with connection/upload/
+generation guards and no FAL_KEY. Formal full/two-scene results are committed
+small evidence files; provider caches and rendered test videos remain ignored.
+
+Video cache v2 binds model/visual configuration/source-image fingerprint and
+output hash. Cache hits and new downloads require ffprobe metadata plus full
+FFmpeg decode. Manifest records generated/cache/supplied video provenance, source
+and clip hashes, actual renderer input paths, encoded scene hashes, title cards,
+failures, no-audio and supplied audio sources. `verify_real_media.py` is the local
+post-generation auditor; it cannot establish vendor billing or authenticate a
+live service response on its own.
+
+The durable `request-ledger.json` reserves conservative estimated costs before
+submission. Nonfinite caps, out-of-scope/changed inputs, existing uncertain
+attempts, insufficient remaining estimate or a concurrent ledger lock fail
+closed. Keep the same cache root; do not clear the ledger to retry. Failed
+requests may have been billed. Actual cost remains null without vendor evidence;
+local configured pricing/overhead is an estimate, not a provider billing cap.
+
+This task executes no real fal or Edge TTS request. Mock fal and local synthetic
+motion/test-tone integration results are code tests only. fal-client 1.0.3 was source-audited: its queue POST retries can multiply submissions. Inference now bypasses subscribe using one non-redirecting, non-retrying authenticated queue POST and GET-only polling; its request ID is persisted before waiting. SDK upload storage retries cannot resubmit inference. Live service/model/rate/billing remains unverified until separately authorized.

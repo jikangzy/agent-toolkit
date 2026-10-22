@@ -1,0 +1,21 @@
+{
+  "sdk": "fal-client",
+  "version": "1.0.3",
+  "wheel_sha256": "b98f97d90d434c5cf7a39afd5ac82a732e7ec750f163a613c842fb5052c653ed",
+  "source": "Downloaded distribution fal_client/client.py; no package execution or real service call",
+  "findings": {
+    "MAX_ATTEMPTS": 10,
+    "submit_uses_maybe_retry_request": true,
+    "submit_lines": [
+      2331,
+      2381
+    ],
+    "retry_helper_lines": [
+      1232,
+      1255
+    ]
+  },
+  "resolution": "Inference bypasses SDK subscribe/submit: one urllib opener POST, no redirects or automatic resubmission, receipt persisted before GET polling; storage upload helper only",
+  "validation": "Mock HTTP boundary tests; real queue/API not invoked",
+  "generation_requests": 0
+}

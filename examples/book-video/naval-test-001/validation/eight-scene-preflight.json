@@ -1,0 +1,66 @@
+{
+  "status": "preflight_passed",
+  "video_preflight": {
+    "provider": "fal-minimax-h3-max-turbo",
+    "model": "minimax/h3-max-turbo/image-to-video",
+    "resolution": "768P",
+    "clip_seconds_requested": 5,
+    "estimated_uncached_clips": 8,
+    "cached_scene_ids": [],
+    "billable_scene_ids": [
+      "scene_002",
+      "scene_003",
+      "scene_004",
+      "scene_005",
+      "scene_006",
+      "scene_007",
+      "scene_008",
+      "scene_009"
+    ],
+    "estimated_cost_usd": 1.14,
+    "budget_usd": 1.2,
+    "estimated_cost_per_clip_usd": 0.1425,
+    "estimated_prior_reserved_usd": 0,
+    "estimated_total_reserved_and_pending_usd": 1.14,
+    "dynamic_scene_ids": [
+      "scene_002",
+      "scene_003",
+      "scene_004",
+      "scene_005",
+      "scene_006",
+      "scene_007",
+      "scene_008",
+      "scene_009"
+    ],
+    "network_requests_made": 0,
+    "paid_requests_made": 0,
+    "images_uploaded": 0,
+    "generation_api_calls": 0,
+    "budget_check": "PASS",
+    "cost_basis_usd_per_second": 0.025,
+    "estimate_includes_duration_overhead_seconds_per_clip": 0.7
+  },
+  "execution_guard": {
+    "network_attempts_blocked": 0,
+    "generation_api_attempts_blocked": 0,
+    "credentials_removed": true,
+    "network_requests_made": 0,
+    "paid_requests_made": 0,
+    "exit_code": 0,
+    "stderr": "",
+    "cli_arguments": [
+      "examples/book-video/naval-test-001/storyboard.json",
+      "--output",
+      "output/naval-e2e/full",
+      "--assets-dir",
+      "examples/book-video/naval-test-001/source-images",
+      "--ai-video-provider",
+      "fal-h3-max-turbo",
+      "--video-clip-seconds",
+      "5",
+      "--video-budget-usd",
+      "1.20",
+      "--video-preflight-only"
+    ]
+  }
+}

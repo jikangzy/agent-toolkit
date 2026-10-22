@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "tools/book-video-renderer/**"
+      - "examples/book-video/naval-test-001/**"
+      - "openspec/changes/real-media-e2e-validation/**"
       - ".github/workflows/book-video-renderer-tests.yml"
   push:
     branches:
@@ -11,6 +13,8 @@ on:
       - feat/book-video-renderer-mvp
     paths:
       - "tools/book-video-renderer/**"
+      - "examples/book-video/naval-test-001/**"
+      - "openspec/changes/real-media-e2e-validation/**"
       - ".github/workflows/book-video-renderer-tests.yml"
   workflow_dispatch:
     inputs:
@@ -28,6 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -53,65 +59,42 @@ jobs:
           echo "Using CJK font: $FONT"
           test -n "$FONT"
           BOOK_VIDEO_FONT="$FONT" python -m unittest discover -s tools/book-video-renderer/tests -v
-      - name: Run zero-cost Naval video preflight smoke test
+      - name: Validate formal PNGs, preserved-ID fixture and guarded preflights
         shell: bash
         run: |
-          rm -rf /tmp/naval-video-preflight
-          mkdir -p /tmp/naval-video-preflight/images
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from PIL import Image
-
-          storyboard = json.loads(
-              Path("examples/book-video/naval-test-001/storyboard.json").read_text(encoding="utf-8")
-          )
-          dynamic = [
-              scene["id"] for scene in storyboard["scenes"]
-              if scene["visual"]["type"] in ("video", "broll")
-          ]
-          assert dynamic == [
-              "scene_002", "scene_003", "scene_004", "scene_005",
-              "scene_006", "scene_007", "scene_008", "scene_009",
-          ]
-          for index, scene_id in enumerate(dynamic):
-              Image.new("RGB", (64, 64), (20 + index * 10, 40, 80)).save(
-                  Path("/tmp/naval-video-preflight/images") / f"{scene_id}.png"
-              )
-          print(f"Prepared {len(dynamic)} synthetic source-image fixtures for local preflight only.")
-          PY
           unset FAL_KEY
-          python tools/book-video-renderer/pipeline.py \
+          python tools/book-video-renderer/check_e2e_contract.py
+          python tools/book-video-renderer/validate_naval.py --remote-ref origin/main --output output/naval-ci/source-validation
+          python tools/book-video-renderer/offline_preflight.py \
+            --report output/naval-ci/eight-scene-preflight.json \
             examples/book-video/naval-test-001/storyboard.json \
-            --output /tmp/naval-video-preflight/output \
-            --assets-dir /tmp/naval-video-preflight/images \
-            --ai-video-provider fal-h3-max-turbo \
-            --video-budget-usd 1.20 \
-            --video-clip-seconds 5 \
-            --video-preflight-only | tee /tmp/naval-video-preflight/report.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          report = json.loads(Path("/tmp/naval-video-preflight/report.json").read_text())
-          video = report["video_preflight"]
-          assert report["status"] == "preflight_passed"
-          assert video["dynamic_scene_ids"] == [
-              "scene_002", "scene_003", "scene_004", "scene_005",
-              "scene_006", "scene_007", "scene_008", "scene_009",
-          ]
-          assert video["estimated_uncached_clips"] == 8
-          assert video["network_requests_made"] == 0
-          assert video["paid_requests_made"] == 0
-          assert video["estimated_cost_usd"] == 1.14
-          assert video["budget_usd"] == 1.20
-          print(json.dumps(video, ensure_ascii=False, indent=2))
-          PY
+            --output output/naval-ci/full \
+            --assets-dir examples/book-video/naval-test-001/source-images \
+            --ai-video-provider fal-h3-max-turbo --video-budget-usd 1.20 \
+            --video-clip-seconds 5 --video-preflight-only
+          python tools/book-video-renderer/offline_preflight.py \
+            --report output/naval-ci/two-scene-preflight.json \
+            examples/book-video/naval-test-001/validation/two-scene-storyboard.json \
+            --output output/naval-ci/two \
+            --assets-dir examples/book-video/naval-test-001/source-images \
+            --ai-video-provider fal-h3-max-turbo --video-budget-usd .40 \
+            --video-clip-seconds 5 --video-preflight-only
+      - name: Upload zero-cost evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naval-zero-cost-evidence
+          path: output/naval-ci/
+          if-no-files-found: warn
+          retention-days: 14
 
   render-tts-sample:
     if: github.event_name == 'workflow_dispatch' && inputs.render_tts_sample
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

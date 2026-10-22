@@ -14,8 +14,10 @@ def load_storyboard(path: Path, schema: Path = SCHEMA):
     ids = [s['id'] for s in data['scenes']]
     if len(ids) != len(set(ids)):
         raise RenderError('Duplicate scene IDs')
-    expected = [f'scene_{i:03}' for i in range(1, len(ids) + 1)]
-    if ids != expected:
+    # A derived validation slice keeps original IDs (e.g. scene_002/003).
+    start = int(ids[0].split('_')[1])
+    expected = [f'scene_{i:03}' for i in range(start, start + len(ids))]
+    if start < 1 or ids != expected:
         raise RenderError(f'Invalid scene order: expected {expected}, got {ids}; scenes will not be reordered')
     fmt = data['format']
     if (fmt['resolution'], fmt['aspect_ratio'], fmt.get('fps', FPS)) != ('1080x1920', '9:16', FPS):

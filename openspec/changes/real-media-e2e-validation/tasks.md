@@ -1,13 +1,29 @@
 # Tasks
 
-- [x] 核对最新 main、CI、Pipeline CLI、动态视频 Provider、TTS 与 Naval 样例。
-- [x] 确认 Naval 当前只有 storyboard，不能仅凭 8 个 broll/video 标记宣称真实视频已生成。
-- [ ] 增加完全无付费、无网络的 AI 视频 dry-run preflight；不得要求 FAL_KEY，不得调用 fal API。
-- [ ] 为 dry-run preflight 增加自动化测试：动态场景统计、缺失源图、无效源图、缓存命中、预算不足、预算足够。
-- [ ] 生成或提供 1–2 个动态场景的合法源图，并在低预算上限内执行首次真实视频小样。
-- [ ] 验证小样生成的视频包含真实 video stream、可被 ffprobe/FFmpeg 完整读取，并在 manifest 中记录 provider/model/cache/cost evidence。
-- [ ] 使用 `--require-video-assets` 验证小样进入最终合成，缺真实视频时必须 fail closed，不允许静态 fallback 冒充真实视频。
-- [ ] 为小样接入中文旁白：优先 supplied WAV；如使用 Edge TTS，必须显式 opt-in 并记录 provider/voice/字幕对齐结果。
-- [ ] 小样通过后，将真实视频验证扩展到 Naval 全部 8 个动态场景。
-- [ ] 全量成片通过 H.264/1080x1920/30fps/AAC/字幕/scene count/full decode QC。
-- [ ] 更新 VALIDATION.md，区分“代码/CI 已验证”“真实媒体小样已验证”“8 场景全量已验证”，不得混用。
+## Code and zero-cost preparation
+
+- [x] Fresh fetch origin/main；从最新基准创建 feat/naval-real-media-e2e-validation，保留已有附件。
+- [x] 阅读 Issue #23、旧分支独立文档差异、OpenSpec、Pipeline、Video/TTS、Renderer、Manifest、QC、测试与 CI。
+- [x] 验证远端 main Git tree 的 8 张正式 PNG，与本地和 Git blob 内容对应；记录尺寸、颜色模式、SHA-256 和完整解码。
+- [x] 原始 storyboard 保持不变：10 scenes、2 title cards、8 动态场景，记录本地 CRLF 与 Git LF 哈希。
+- [x] 使用真实 8 张 PNG 执行 8 场景零网络/零付费 preflight（5 秒，USD 1.20 cap），保存完整输出和网络阻断计数。
+- [x] 创建 scene_002/003 派生 fixture，逐字段保留源文案/提示/时长/ID，修复连续 ID 起点限制并添加测试。
+- [x] 使用正式源图执行两场景零网络/零付费 preflight（5 秒，USD .40 cap）。
+- [x] 添加持久化请求预算预留、失败/不确定请求禁止自动重试、并发锁、输入指纹、缓存损坏和非有限预算测试。
+- [x] 视频和最终成片 QC 增加完整 FFmpeg 解码；Manifest 追踪 Provider、输入图 hash、输出 hash、缓存、失败和 title card。
+- [x] supplied WAV 完整解码；保留 narration，修正 supplied-audio 来源标签；保留既有时长/字幕/Edge mock 测试。
+- [x] 准备付费生成后的自动来源/QC 审计命令；mock fal + 本地合成视频集成验证（不是真实 fal 验收）。
+- [x] 最新代码完整 compile/unit/FFmpeg 回归全部通过：86 tests，0 failures/errors/skips（见 test-results.json）。
+- [x] 本工作分支 PR CI 通过：39618980546；正式 PNG/preflight artifact 已下载并核对。
+- [x] 提交并推送工作分支，创建目标 main 的 PR #24；阶段报告持续同步 Issue #23。
+
+## Real-service acceptance — NOT RUN / paid authorization required
+
+- [ ] 获得本次 scene_002/003 真实消费授权及 FAL_KEY；fresh preflight 与账单风险复核。
+- [ ] 两场景真实 fal clip 生成及逐个 ffprobe/full decode、输入/输出指纹、请求证据和成本记录。
+- [ ] 两个真实 clip 进入 --require-video-assets Renderer，并通过最终视觉 QC。
+- [ ] 接入经授权的真实 narration，完成两场景音视频/字幕验收；不得用 test tone 代替。
+- [ ] 两场景通过后 fresh full preflight；独立取得剩余 6 场景消费授权。
+- [ ] 8/8 正式动态场景均具有真实 fal 输出/有效缓存证据。
+- [ ] 10 场景完整有声成片通过 H.264/1080x1920/30fps/AAC/字幕/场景数/full decode QC。
+- [ ] 独立审核全部真实媒体证据后再进行 Change 收口；当前保持 OPEN / PARTIAL。

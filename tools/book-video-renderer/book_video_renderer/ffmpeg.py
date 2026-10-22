@@ -6,7 +6,8 @@ from .models import RenderError
 
 def command(args, timeout=900):
     try:
-        result = subprocess.run([str(a) for a in args], capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run([str(a) for a in args], capture_output=True,
+                                encoding='utf-8', errors='replace', timeout=timeout)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise RenderError(str(exc)) from exc
     if result.returncode:

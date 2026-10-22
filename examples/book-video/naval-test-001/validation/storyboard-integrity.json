@@ -1,0 +1,28 @@
+{
+  "source_path": "examples/book-video/naval-test-001/storyboard.json",
+  "original_storyboard_sha256": "e11bbfa91e8916c97246d3ccf924026024920488dacb49344a127b44085cc442",
+  "remote_git_content_sha256": "07212968552b55f488463f27c2bd2edd1f761958ac99423423fee7d939bbbb1f",
+  "local_newline_note": "raw local SHA may differ from Git LF blob due to CRLF checkout",
+  "remote_json_equal": true,
+  "source_bytes_unchanged": true,
+  "narration_unchanged": true,
+  "onscreen_text_unchanged": true,
+  "order_unchanged": true,
+  "scene_count": 10,
+  "dynamic_scene_ids": [
+    "scene_002",
+    "scene_003",
+    "scene_004",
+    "scene_005",
+    "scene_006",
+    "scene_007",
+    "scene_008",
+    "scene_009"
+  ],
+  "duration_seconds": 113,
+  "derived_scene_ids": [
+    "scene_002",
+    "scene_003"
+  ],
+  "derived_duration": 23
+}

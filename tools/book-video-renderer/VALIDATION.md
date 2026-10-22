@@ -105,3 +105,32 @@ After preserving the four newer upstream main commits (through `77bbd9b`), the
 complete suite passed **45 tests with zero skips** in 50.061 seconds. This includes
 the upstream punctuation-tolerant alignment regression. No renderer-package or
 Naval source content changed during that integration.
+
+
+## Naval real-media validation — current four-level status
+
+Authoritative staged record: `openspec/changes/real-media-e2e-validation/RUN_REPORT.md`.
+Base: `04edeff096fec139880b5bcbe1fdf91663dc4ff4`; work branch:
+`feat/naval-real-media-e2e-validation`. This section supersedes any older absence
+claim about formal source images, without changing historical test records.
+
+| Level | Current status | Evidence and boundary |
+| --- | --- | --- |
+| LEVEL 1 — CODE / CI | Local frozen-source 86-test full FFmpeg run PASS, 0 skips; PR CI SUCCESS (39618980546), verified formal-source/preflight artifact; final report-only head check tracked in Issue #23 | Includes mock fal/Edge, actual local video decode/render, supplied WAV/test tones and cache/manifest recovery; not live service acceptance |
+| LEVEL 2 — SOURCE IMAGES / PREFLIGHT | PASS | 8/8 main Git-tree originals, 941×1672 RGB PNG, full decode/hash; guarded eight/two-scene CLI reports with 0 external generation requests |
+| LEVEL 3 — TWO-SCENE REAL MOTION | NOT RUN — PAID AUTHORIZATION REQUIRED | No real fal clips or narrated two-scene output. Mock/synthetic integration is not promoted to this level |
+| LEVEL 4 — FULL EIGHT-SCENE REAL MOTION | NOT RUN — PAID AUTHORIZATION REQUIRED | No 8/8 actual Provider output or narrated 10-scene acceptance |
+
+Formal small evidence lives in `examples/book-video/naval-test-001/validation/`:
+source-images-report.json, storyboard-integrity.json, two-scene-storyboard.json,
+eight-scene-preflight.json, two-scene-preflight.json, test-results.json.
+Raw local execution logs and temporary synthetic media stay under ignored
+`output/naval-e2e/`; CI uploads `naval-zero-cost-evidence` (no paid outputs).
+
+Original narration/onscreen text/order/durations unchanged. Raw Windows CRLF
+source SHA and canonical Git LF SHA are recorded separately. Current configured
+estimates: USD .1425/clip, cold two-scene .285/.40, cold eight-scene 1.14/1.20.
+These are estimates at the repository's rate/overhead, not confirmed live billing.
+No real fal or Edge TTS request has been executed by this task; FAL_KEY is missing
+and paid permission is not granted. Prepared commands and reconciliation policy
+are in CODEX_RUNBOOK.md. Do not close this Change as real-media complete.
