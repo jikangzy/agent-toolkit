@@ -410,3 +410,9 @@ local configured pricing/overhead is an estimate, not a provider billing cap.
 
 This task executes no real fal or Edge TTS request. Mock fal and local synthetic
 motion/test-tone integration results are code tests only. fal-client 1.0.3 was source-audited: its queue POST retries can multiply submissions. Inference now bypasses subscribe using one non-redirecting, non-retrying authenticated queue POST and GET-only polling; its request ID is persisted before waiting. SDK upload storage retries cannot resubmit inference. Live service/model/rate/billing remains unverified until separately authorized.
+
+### Local HyperFrames provider (experimental)
+
+Install Node.js 22+, FFmpeg/ffprobe, Chromium and a CJK font. Install pinned dependencies in a local directory, for example `npm install --prefix /path/to/hf-runtime hyperframes@0.8.221 gsap@3.14.2`. Run the existing Python CLI with `--ai-video-provider hyperframes`, `--assets-dir`, `--hyperframes-executable /path/to/hf-runtime/node_modules/.bin/hyperframes`, and `--hyperframes-gsap /path/to/hf-runtime/node_modules/gsap/dist/gsap.min.js`. Set `HYPERFRAMES_BROWSER_PATH` if browser discovery cannot find Chromium. Each scene requires a named source image; missing images fail instead of producing a placeholder.
+
+HyperFrames builds local scene compositions and a GSAP crossfade composition; Python retains scene caching, subtitle generation, audio handling, provenance and FFmpeg QC. Use `--tts-audio-dir` for supplied scene WAVs and `--subtitle-file` for an externally aligned SRT. Without them, there is no narration and captions use estimated scene timing. No speech is synthesized by this provider. `fal-h3-max-turbo` remains a separate, opt-in provider.

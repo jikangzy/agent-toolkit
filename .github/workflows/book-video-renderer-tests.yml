@@ -6,6 +6,7 @@ on:
       - "tools/book-video-renderer/**"
       - "examples/book-video/naval-test-001/**"
       - "openspec/changes/real-media-e2e-validation/**"
+      - "openspec/changes/hyperframes-video-renderer/**"
       - ".github/workflows/book-video-renderer-tests.yml"
   push:
     branches:
@@ -85,6 +86,203 @@ jobs:
         with:
           name: naval-zero-cost-evidence
           path: output/naval-ci/
+          if-no-files-found: warn
+          retention-days: 14
+
+  render-hyperframes-10-scene:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'feat/hyperframes-video-renderer' && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: Configure HyperFrames browser
+        shell: bash
+        run: |
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || true)"
+          test -n "$CHROME"
+          echo "HYPERFRAMES_BROWSER_PATH=$CHROME" >> "$GITHUB_ENV"
+      - name: Install FFmpeg, CJK fonts and renderer dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fontconfig fonts-noto-cjk
+          python -m pip install -r tools/book-video-renderer/requirements.txt
+          npm install --prefix "$RUNNER_TEMP/hyperframes-runtime" --no-audit --no-fund hyperframes@0.8.221 gsap@3.14.2
+          "$RUNNER_TEMP/hyperframes-runtime/node_modules/.bin/hyperframes" --version
+          test -s "$RUNNER_TEMP/hyperframes-runtime/node_modules/gsap/dist/gsap.min.js"
+      - name: Render all 10 scenes twice and verify the real local output
+        shell: bash
+        run: |
+          set -euo pipefail
+          unset FAL_KEY
+          FONT="$(fc-match -f '%{file}' 'Noto Sans CJK SC' | head -n 1)"
+          test -n "$FONT"
+          BROWSER="$HYPERFRAMES_BROWSER_PATH"
+          test -x "$BROWSER"
+          echo "HyperFrames browser: $BROWSER"
+          echo "CJK font: $FONT"
+          OUTPUT="output/naval-hyperframes-10scene"
+          ASSETS="examples/book-video/naval-test-001/source-images"
+          mkdir -p "$OUTPUT/review"
+          sha256sum examples/book-video/naval-test-001/storyboard.json "$ASSETS"/scene_*.png > "$OUTPUT/source-before.sha256"
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          root = Path("examples/book-video/naval-test-001/source-images")
+          expected = [f"scene_{i:03}.png" for i in range(2, 10)]
+          assert sorted(p.name for p in root.glob("scene_*.png")) == expected
+          for name in expected:
+              path = root / name
+              with Image.open(path) as image:
+                  image.verify()
+              with Image.open(path) as image:
+                  assert image.format == "PNG" and image.mode == "RGB"
+                  assert image.size == (941, 1672), (name, image.size)
+          print("Validated all eight original source PNGs.")
+          PY
+          RENDERER="tools/book-video-renderer/renderer.py"
+          STORYBOARD="examples/book-video/naval-test-001/storyboard.json"
+          HYPERFRAMES="$RUNNER_TEMP/hyperframes-runtime/node_modules/.bin/hyperframes"
+          GSAP="$RUNNER_TEMP/hyperframes-runtime/node_modules/gsap/dist/gsap.min.js"
+          python "$RENDERER" render --storyboard "$STORYBOARD" --output "$OUTPUT" \
+            --assets-dir "$ASSETS" --font "$FONT" --ai-video-provider hyperframes \
+            --hyperframes-executable "$HYPERFRAMES" --hyperframes-gsap "$GSAP"
+          sha256sum "$OUTPUT/final.mp4" | awk '{print $1}' > "$RUNNER_TEMP/first-render.sha256"
+          python "$RENDERER" render --storyboard "$STORYBOARD" --output "$OUTPUT" \
+            --assets-dir "$ASSETS" --font "$FONT" --ai-video-provider hyperframes \
+            --hyperframes-executable "$HYPERFRAMES" --hyperframes-gsap "$GSAP"
+          sha256sum "$OUTPUT/final.mp4" | awk '{print $1}' > "$RUNNER_TEMP/second-render.sha256"
+          diff -u "$RUNNER_TEMP/first-render.sha256" "$RUNNER_TEMP/second-render.sha256"
+          sha256sum -c "$OUTPUT/source-before.sha256"
+          ffprobe -v error -show_streams -show_format -of json "$OUTPUT/final.mp4" > "$OUTPUT/ffprobe.json"
+          ffmpeg -hide_banner -loglevel error -i "$OUTPUT/final.mp4" -f null -
+          ffmpeg -hide_banner -i "$OUTPUT/final.mp4" -vf "blackdetect=d=0.1:pix_th=0.10" -an -f null - 2> "$OUTPUT/blackdetect.log"
+          if grep -q "black_start" "$OUTPUT/blackdetect.log"; then
+            cat "$OUTPUT/blackdetect.log"
+            echo "Black intervals detected; full render requires visual review."
+            exit 1
+          fi
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          import subprocess
+          from PIL import Image, ImageDraw
+
+          output = Path("output/naval-hyperframes-10scene")
+          source = Path("examples/book-video/naval-test-001/storyboard.json")
+          storyboard = json.loads(source.read_text(encoding="utf-8"))
+          manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+          probe = json.loads((output / "ffprobe.json").read_text(encoding="utf-8"))
+          video = output / "final.mp4"
+          scenes = storyboard["scenes"]
+          ids = [scene["id"] for scene in scenes]
+          dynamic = [f"scene_{i:03}" for i in range(2, 10)]
+          assert ids == [f"scene_{i:03}" for i in range(1, 11)]
+          assert manifest["overall_status"] == "completed"
+          assert manifest["qc"]["status"] == "passed"
+          assert manifest["scene_order"] == ids
+          assert len(manifest["scenes"]) == 10
+          assert abs(float(manifest["qc"]["duration_seconds"]) - 113.0) < 0.1
+          assert manifest["video_provider"] == "hyperframes"
+          assert manifest["video_coverage"]["eligible_scene_count"] == 8
+          assert manifest["video_coverage"]["clips_supplied"] == 8
+          assert manifest["video_coverage"]["missing_clip_scene_ids"] == []
+          assert all(manifest["video_assets"][scene_id] for scene_id in dynamic)
+          assert all(manifest["video_provider_records"][scene_id]["cache_hit"] for scene_id in dynamic)
+          assert all(scene["cache_hit"] for scene in manifest["scenes"])
+          assert manifest["speech_status"] == "fallback_no_audio"
+          assert manifest["subtitle_alignment"]["status"] == "scene_proportional"
+          assert manifest["music"]["status"] == "skipped"
+          assert manifest["transition"]["renderer"] == "hyperframes_gsap"
+          assert abs(manifest["transition"]["duration_seconds"] - 0.6) < 1e-9
+          streams = probe["streams"]
+          video_stream = next(stream for stream in streams if stream["codec_type"] == "video")
+          assert video_stream["codec_name"] == "h264"
+          assert (video_stream["width"], video_stream["height"]) == (1080, 1920)
+          assert video_stream["avg_frame_rate"] == "30/1"
+          assert not any(stream["codec_type"] == "audio" for stream in streams)
+          duration = float(probe["format"]["duration"])
+          assert abs(duration - 113.0) < 0.1
+
+          review = output / "review"
+          tiles = []
+          offset = 0.0
+          for scene in scenes:
+              timestamp = offset + float(scene["duration_seconds"]) / 2
+              frame_path = review / f'{scene["id"]}.jpg'
+              subprocess.run([
+                  "ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", f"{timestamp:.3f}",
+                  "-i", str(video), "-frames:v", "1", "-vf", "scale=270:480", "-y", str(frame_path)
+              ], check=True)
+              with Image.open(frame_path) as opened:
+                  frame = opened.convert("RGB")
+              tile = Image.new("RGB", (270, 504), (16, 20, 28))
+              tile.paste(frame, (0, 24))
+              ImageDraw.Draw(tile).text((8, 5), f'{scene["id"]} · {timestamp:.1f}s', fill="white")
+              tiles.append(tile)
+              offset += float(scene["duration_seconds"])
+          sheet = Image.new("RGB", (810, 2016), (10, 14, 20))
+          for index, tile in enumerate(tiles):
+              sheet.paste(tile, ((index % 3) * 270, (index // 3) * 504))
+          sheet.save(review / "contact-sheet.jpg", quality=90)
+
+          sha = hashlib.sha256(video.read_bytes()).hexdigest()
+          source_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+          report = {
+              "status": "PASS",
+              "scope": "10-scene offline HyperFrames visual pipeline",
+              "scene_count": 10,
+              "scene_order": ids,
+              "duration_seconds": duration,
+              "resolution": "1080x1920",
+              "fps": "30/1",
+              "codec": "h264",
+              "source_storyboard_sha256": source_sha,
+              "source_images": 8,
+              "local_hyperframes_scenes": dynamic,
+              "local_title_card_scenes": ["scene_001", "scene_010"],
+              "title_card_note": "Local program-generated title-card graphics; not AI-generated images.",
+              "speech_status": manifest["speech_status"],
+              "music_status": manifest["music"]["status"],
+              "subtitle_alignment": manifest["subtitle_alignment"]["status"],
+              "transition": manifest["transition"],
+              "provider_cache_hits": 8,
+              "pipeline_scene_cache_hits": 10,
+              "repeat_render_sha256_identical": True,
+              "final_size_bytes": video.stat().st_size,
+              "final_sha256": sha,
+              "paid_video_or_tts_calls": 0
+          }
+          (output / "run-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          (output / "RUN_REPORT.md").write_text(
+              "# Naval 10-scene HyperFrames validation\n\n"
+              "- Status: PASS for the offline visual pipeline.\n"
+              "- Scope: 10 scenes, 113 seconds, 1080x1920, 30 fps, H.264.\n"
+              "- Eight original still images were animated locally with HyperFrames/GSAP; scenes 001 and 010 use local title-card graphics.\n"
+              "- No fal.ai video generation, TTS request, narration audio or music was used.\n"
+              "- Subtitles use scene-proportional estimated timing, not speech alignment.\n"
+              "- Full decode, ffprobe, blackdetect, source immutability, cache hits and repeat SHA-256 were checked.\n"
+              "- Final SHA-256: " + sha + " (" + str(video.stat().st_size) + " bytes).\n",
+              encoding="utf-8"
+          )
+          print(json.dumps(report, ensure_ascii=False, indent=2))
+          PY
+      - name: Upload full 10-scene render and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naval-hyperframes-10-scene
+          path: output/naval-hyperframes-10scene/
           if-no-files-found: warn
           retention-days: 14
 

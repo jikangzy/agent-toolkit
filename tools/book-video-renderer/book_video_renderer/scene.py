@@ -10,14 +10,18 @@ from .providers.image import prepare_visual, prepare_text_overlay
 from .providers.video import validate_video_asset
 
 
-def encode_scene(scene, data, font, work, provider, visual_asset=None, video_asset=None):
+def encode_scene(scene, data, font, work, provider, visual_asset=None, video_asset=None, text_in_video=False):
     """Encode one scene from a still image or real motion footage plus narration."""
     image, clip = work/'visual.png', work/'clip.mp4'
     duration = frame_count(scene) / FPS
     if video_asset is not None:
         validate_video_asset(video_asset)
         # The PNG is a transparent text overlay, not a still-image replacement.
-        prepare_text_overlay(scene, font, image)
+        if text_in_video:
+            from PIL import Image
+            Image.new('RGBA', (1080, 1920), (0, 0, 0, 0)).save(image)
+        else:
+            prepare_text_overlay(scene, font, image)
     else:
         prepare_visual(scene, font, image, visual_asset)
 
