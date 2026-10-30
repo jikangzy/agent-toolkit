@@ -1,0 +1,26 @@
+{
+  "project": "ming-dynasty-ch01",
+  "status": "planning_incomplete",
+  "source_text_verified": false,
+  "reference_opening_reviewed": true,
+  "reference_edition_and_rights_verified": false,
+  "script_locked": false,
+  "storyboard_locked": false,
+  "target": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "codec": "h264",
+    "sample_seconds_planned": 82
+  },
+  "assets": [],
+  "narration_audio": null,
+  "music": null,
+  "sample_mp4": null,
+  "qc": "not_run",
+  "paid_api_calls": 0,
+  "title": "开篇篇章：朱元璋的早年经历",
+  "hyperframes_version": "0.8.221",
+  "tts_test_status": "planned_not_generated",
+  "sample_seconds_planned": 82
+}
