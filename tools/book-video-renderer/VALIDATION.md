@@ -134,3 +134,19 @@ These are estimates at the repository's rate/overhead, not confirmed live billin
 No real fal or Edge TTS request has been executed by this task; FAL_KEY is missing
 and paid permission is not granted. Prepared commands and reconciliation policy
 are in CODEX_RUNBOOK.md. Do not close this Change as real-media complete.
+
+## HyperFrames route (in progress)
+
+An independent change is tracked in `openspec/changes/hyperframes-video-renderer`. The local CLI version is 0.8.221, Node v24.19.0 and FFmpeg/ffprobe 7.1.5. The two-scene acceptance run is in progress; no paid AI video or external TTS has been invoked. Scene transition, animation and final QC remain to be verified; do not treat preliminary output as acceptance.
+
+The preliminary 23-second output passed ffprobe and full decode (1080x1920, 30 fps, H.264); blackdetect found no interval at `d=0.1:pix_th=0.10`. It is not final acceptance: the title was duplicated by the existing pipeline, and the code adjustment has not been re-rendered. Transitions remain cuts and the audio track is absent. Full regression: 90 tests, 10 skipped. The independent run report contains the output hash and remaining work.
+
+### Continuation candidate (not acceptance)
+
+Two scenes were re-rendered with the formal PNGs. The prior duplicate title arose from both HyperFrames and the legacy scene overlay drawing `onscreen_text`; the HyperFrames provider now owns that title layer. The candidate `/workspace/artifacts/naval-hyperframes-validation/reviewed-candidate.mp4` is 17,252,202 bytes, SHA-256 `25d633f0e9fd97188ef47983131c12c8c807ef6b40f3b0e18e35d7aca71b6244`. Probe: 23 seconds, 1080x1920, 30 fps, H.264; full decode and blackdetect passed. Keyframes and full probe are saved alongside it. It has no audio, and captions use estimated scene timing. A 0.6s FFmpeg crossfade is present, but the requested HyperFrames-native or Registry transition remains unfinished. See the independent run report for test outcomes, cache and outstanding acceptance work.
+
+### Native transition render
+
+The full-resolution native HyperFrames/GSAP crossfade render is `/workspace/artifacts/naval-hyperframes-native/validated-render.mp4` (19,051,707 bytes; SHA-256 `1dc25584fa94bc78bfd92a73117947a94bea21a299fee9f2da5940594832d845`). Probe and full decode passed: 23 seconds, 1080x1920, 30 fps, H.264/yuv420p. Blackdetect reported no black intervals; sampled start, title, middle, boundary, transition and ending frames were reviewed. Audio is absent, subtitles are scene-proportional, and real supplied speech/alignment has not been validated. HyperFrames lint returned zero errors and warnings. A 92-test full suite passed without skips; six updated HyperFrames tests also passed. Actual input-change cache tests use simulated render calls, while a real unchanged run showed scene cache hits. See the independent run report for details and the prior non-final candidates.
+
+Real cache verification subsequently passed using copied inputs and one-second actual HyperFrames renders: same input hit; image pixel, storyboard narration, and copied animation parameter changes each missed and produced independently decoded outputs. See the run report and `/workspace/artifacts/hyperframes-real-cache-check/results.json` for fingerprints and hashes. The full native composition was repeated with both scene caches hit and an identical final SHA-256. TWO-SCENE HYPERFRAMES VALIDATION: PASS for visual/silent scope; real speech and speech alignment are NOT RUN.

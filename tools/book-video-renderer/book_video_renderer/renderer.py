@@ -239,7 +239,8 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         else:
             manifest['subtitle_alignment'] = {'status': 'scene_proportional'}
             manifest['fallbacks'].append('Subtitles use scene-proportional timing, not speech alignment.')
-        manifest['fallbacks'].append('Transitions use cuts; requested transitions are recorded per scene.')
+        if getattr(video_provider, 'provider_name', None) != 'hyperframes':
+            manifest['fallbacks'].append('Transitions use cuts; requested transitions are recorded per scene.')
         if provider.fallback:
             manifest['fallbacks'].append(provider.fallback)
         if getattr(provider, 'provider_notice', None):
@@ -310,7 +311,7 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
                 entry['attempts_total'] += 1
                 entry['status'] = 'rendering'
                 save_json(manifest_path, manifest)
-                clip, audio = encode_scene(scene, data, font_path, work, provider, visual_asset, video_asset)
+                clip, audio = encode_scene(scene, data, font_path, work, provider, visual_asset, video_asset, text_in_video=getattr(video_provider, 'text_in_video', False))
                 speech = json.loads((work/'speech.json').read_text(encoding='utf-8'))
                 assets = [work/'visual.png']
                 if video_asset is not None:
@@ -360,6 +361,10 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
         command(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y',
                  '-f', 'concat', '-safe', '0', '-i', output/'concat.txt',
                  '-c', 'copy', '-movflags', '+faststart', output/'unburned.mp4'])
+        if getattr(video_provider, 'provider_name', None) == 'hyperframes' and len(clips) > 1:
+            from .hyperframes_transition import assemble as assemble_hyperframes
+            assemble_hyperframes(video_provider, clips, data['scenes'], output, bool(audio_flags[0]))
+            manifest['transition'] = {'type': 'crossfade', 'renderer': 'hyperframes_gsap', 'duration_seconds': .6, 'boundary': 'storyboard_scene_start'}
         manifest['unburned_video_path'] = str(output/'unburned.mp4')
         save_json(manifest_path, manifest)
         if font_path is None:
@@ -373,7 +378,10 @@ def render(source, output, font=None, attempts=3, provider=None, speech_dir=None
             raise RenderError('Unsupported subtitle font family name')
         final_temp = output/'final.partial.mp4'
         total_duration = sum(frame_count(s)/FPS for s in data['scenes'])
-        cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '1', '-i', 'concat.txt']
+        if getattr(video_provider, 'provider_name', None) == 'hyperframes':
+            cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', 'unburned.mp4']
+        else:
+            cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '1', '-i', 'concat.txt']
         if music_path is not None:
             cmd += ['-stream_loop', '-1', '-i', music_path]
         cmd += ['-vf', f"subtitles=subtitles.srt:fontsdir=fonts:force_style='FontName={family},FontSize=8,MarginV=24,Outline=1'",

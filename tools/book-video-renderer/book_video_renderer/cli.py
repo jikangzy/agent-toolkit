@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from .renderer import render
 from .providers.video import FalH3MaxTurboVideoProvider
+from .providers.hyperframes import HyperFramesVideoProvider
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -20,7 +21,9 @@ def main():
     parser.add_argument('--assets-dir', type=Path, help='Optional directory of still images named <scene_id>.png/.jpg/.jpeg/.webp')
     parser.add_argument('--video-assets-dir', type=Path, help='Optional directory of real motion clips named <scene_id>.mp4/.mov/.mkv/.webm for video/broll scenes')
     parser.add_argument('--require-video-assets', action='store_true', help='Fail if any video/broll scene has no real video clip; never silently replace it with a still image')
-    parser.add_argument('--ai-video-provider', choices=['none', 'fal-h3-max-turbo'], default='none', help='Optional paid image-to-video API; default none makes no external video requests')
+    parser.add_argument('--hyperframes-executable', type=Path, help='Local HyperFrames CLI executable')
+    parser.add_argument('--hyperframes-gsap', type=Path, help='Local GSAP minified JavaScript')
+    parser.add_argument('--ai-video-provider', choices=['none', 'fal-h3-max-turbo', 'hyperframes'], default='none', help='Optional paid image-to-video API; default none makes no external video requests')
     parser.add_argument('--video-budget-usd', type=float, help='Required maximum estimated spend for the selected AI video provider')
     parser.add_argument('--video-clip-seconds', type=int, choices=[5, 10], default=5, help='Length of each generated clip before the renderer trims/loops it to scene duration')
     parser.add_argument('--attempts', type=int, default=3)
@@ -36,7 +39,13 @@ def main():
     if bool(args.storyboard) == bool(args.storyboard_option):
         parser.error('Provide exactly one storyboard path (positional or --storyboard)')
     args.storyboard = args.storyboard or args.storyboard_option
-    if args.ai_video_provider != 'none':
+    if args.ai_video_provider == 'hyperframes':
+        if not args.assets_dir or not args.hyperframes_executable or not args.hyperframes_gsap:
+            parser.error('hyperframes requires --assets-dir, --hyperframes-executable and --hyperframes-gsap')
+        if args.video_assets_dir or args.video_budget_usd is not None:
+            parser.error('hyperframes cannot be combined with video assets or a paid budget')
+        video_provider = HyperFramesVideoProvider(args.assets_dir, args.hyperframes_executable, args.hyperframes_gsap)
+    elif args.ai_video_provider != 'none':
         if args.video_assets_dir is not None:
             parser.error('Use either --video-assets-dir or --ai-video-provider, not both')
         if args.assets_dir is None:
