@@ -19,4 +19,5 @@
 - [x] Verify real unchanged-input scene cache hits at both provider and pipeline layers.
 - [x] Verify input-change cache invalidation with separate real HyperFrames renders. Supplied real speech and speech-aligned subtitle timing remain NOT RUN.
 - [x] Finish the repeated native render and verify cache hits and final hash.
-- [ ] Review and commit; push, create PR, check CI and update Issue #23.
+- [x] Review and commit; push, create PR and update Issue #23.
+- [ ] Check GitHub Actions for the current PR head.
