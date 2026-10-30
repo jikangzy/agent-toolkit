@@ -5,7 +5,7 @@
 - [x] Implement HyperFrames provider and Python pipeline integration with provenance and caching.
 - [x] Render official Naval scene 002 and 003 assets, preserving all storyboard text.
 - [x] Validate animation, estimated captions, transitions, CLI, integration, manifest, cache and FFmpeg QC.
-- [ ] Record actual output and limitations; commit, push, create PR, inspect CI and update issue #23.
+- [x] Record actual output and limitations; commit, push, create PR, inspect CI and update issue #23.
 
 ## Continuation evidence
 
@@ -20,4 +20,4 @@
 - [x] Verify input-change cache invalidation with separate real HyperFrames renders. Supplied real speech and speech-aligned subtitle timing remain NOT RUN.
 - [x] Finish the repeated native render and verify cache hits and final hash.
 - [x] Review and commit; push, create PR and update Issue #23.
-- [ ] Check GitHub Actions for the current PR head.
+- [x] Check GitHub Actions: run 91 on 8cada4e passed; optional TTS job was skipped.

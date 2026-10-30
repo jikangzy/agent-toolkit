@@ -55,3 +55,5 @@ TWO-SCENE HYPERFRAMES VALIDATION: PASS for visual render, transitions, QC and st
 GitHub: working branch pushed; [PR #25](https://github.com/jikangzy/agent-toolkit/pull/25) targets main. Issue #23 was updated with the independent HyperFrames visual/silent results and the remaining audio and fal.ai E2E limitations. GitHub Actions is being checked on the PR head; see the PR checks for the current run.
 
 CI run 90 on `8cde3d4` failed because the new test module relied on local `PYTHONPATH` and GitHub's repository-root discovery could not import `book_video_renderer`. The test now inserts the tool directory as existing tests do; all six HyperFrames tests pass under root discovery without `PYTHONPATH`. A fresh PR-head CI run is required.
+
+GitHub Actions run 91 on `8cada4e` passed: unit/FFmpeg integration tests, formal PNG/fixture/preflight checks and evidence upload succeeded. The optional TTS sample job was skipped by workflow condition. This CI pass does not assert real narration audio was supplied.
