@@ -1,0 +1,173 @@
+{
+  "project": "ming-dynasty-opening",
+  "asset_pack_version": "1.0.0",
+  "created_date": "2026-10-30",
+  "visual_direction": "cinematic historical drama with Chinese-inspired visual language",
+  "assets": [
+    {
+      "id": "MD01_TEMPLE_ARRIVAL",
+      "filename": "scenes/MD01_TEMPLE_ARRIVAL.png",
+      "title": "寺院入口与孤旅者",
+      "scene_hint": "寺院生活/入寺段落",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "b1b7fc4d125a101a12384d3b9ffee82e2feafc73664517ae439c7bd3ca58f28b",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S04"
+      ]
+    },
+    {
+      "id": "MD02_FAMILY_MEAL",
+      "filename": "scenes/MD02_FAMILY_MEAL.png",
+      "title": "贫寒农家室内",
+      "scene_hint": "家庭背景/家境段落",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "f652984613459e32449413b803a25facb3ccc963e99a0102f2caafb1009b261e",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S02"
+      ]
+    },
+    {
+      "id": "MD03_FAMILY_LOSS",
+      "filename": "scenes/MD03_FAMILY_LOSS.png",
+      "title": "荒原与家变后的哀悼场景",
+      "scene_hint": "家变/丧亲段落",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "03ce49247d45041fc3924c991ee0f11e3891c95f25c3395b2ca57e6b57eb1a10",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S03"
+      ]
+    },
+    {
+      "id": "MD04_TEMPLE_PORRIDGE",
+      "filename": "scenes/MD04_TEMPLE_PORRIDGE.png",
+      "title": "寺院施粥与僧众",
+      "scene_hint": "入寺后生活段落",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "9664fd8b35d0f0766f36503966018fcbc6540335c96430afaea5eb500c55ad3d",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S04"
+      ]
+    },
+    {
+      "id": "MD05_RETURN_TO_TEMPLE",
+      "filename": "scenes/MD05_RETURN_TO_TEMPLE.png",
+      "title": "破晓古寺与归途人物",
+      "scene_hint": "游方后返回寺院段落",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "db569d9c5250b1233dc98f83815220349552466c4dd763a4b30e51ede7a8f6ff",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S06"
+      ]
+    },
+    {
+      "id": "MD06_WANDERING_ROAD",
+      "filename": "scenes/MD06_WANDERING_ROAD.png",
+      "title": "暮色乡野中的行旅者",
+      "scene_hint": "游方经历段落",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "d4d132819fd74e648329448f813545ecafafda1be0e70776c8450900ffb7148d",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S05"
+      ]
+    },
+    {
+      "id": "MD07_STORM_LOOKOUT",
+      "filename": "scenes/MD07_STORM_LOOKOUT.png",
+      "title": "风雨中的远望者",
+      "scene_hint": "转折/远景过渡镜头",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "f13fba5268560397eb056896f9a2c6ccf53757f95c1244992c4addd66ab48f13",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S08"
+      ]
+    },
+    {
+      "id": "MD08_LATE_YUAN_VILLAGE",
+      "filename": "scenes/MD08_LATE_YUAN_VILLAGE.png",
+      "title": "寒冬薄雾中的村落",
+      "scene_hint": "时代背景/开篇环境",
+      "width": 1672,
+      "height": 941,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "AI-generated artistic reconstruction; not documentary evidence",
+      "sha256": "4b77eb463bddaa0c247f8844a1ecdefee67ffe67734d1274c8739552f6ee93b0",
+      "review_status": "pending_user_review",
+      "storyboard_shots": [
+        "S01",
+        "S02",
+        "S07"
+      ]
+    },
+    {
+      "id": "MD11_ZHU_YUANZHANG_CHARACTER_FRONT",
+      "filename": "characters/MD11_ZHU_YUANZHANG_CHARACTER_FRONT.png",
+      "title": "朱元璋青年时期正面人物参考",
+      "scene_hint": "人物一致性参考；艺术化历史重建",
+      "width": 540,
+      "height": 1024,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "Artistic character design; not a verified portrait",
+      "sha256": "e277cf791587725d4836ecbc3d00c44d4d12395184bce2ebbdbcd42a92cad7cb",
+      "review_status": "pending_user_review",
+      "reference_role": "character consistency reference"
+    },
+    {
+      "id": "MD11_ZHU_YUANZHANG_CHARACTER_SHEET",
+      "filename": "characters/MD11_ZHU_YUANZHANG_CHARACTER_SHEET.png",
+      "title": "朱元璋人物设定参考板",
+      "scene_hint": "含正面、侧面、背面和表情参考；不是独立角色模型",
+      "width": 1536,
+      "height": 1024,
+      "format": "PNG",
+      "source": "original_generated",
+      "historical_status": "Artistic character design; not a verified portrait",
+      "sha256": "f37ab02365ada59176d7f7f24b947b04dd07ebb94de0c632f6937517a1d13340",
+      "review_status": "pending_user_review",
+      "reference_role": "character appearance reference sheet"
+    }
+  ],
+  "notes": [
+    "All images in this pack are original AI-generated visual assets.",
+    "These images are artistic reconstructions, not historical photographs or evidence.",
+    "The scene images are landscape compositions; crop and reframe for 9:16 in the video pipeline.",
+    "Character reference should guide visual consistency but does not establish Zhu Yuanzhang's actual appearance.",
+    "Review historical details, clothing, architecture, props, and scene-to-script fit before final use."
+  ]
+}
