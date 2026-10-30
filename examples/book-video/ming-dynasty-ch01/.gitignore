@@ -1,2 +1,5 @@
 # Local HyperFrames inspection/cache output
 .hyperframes/
+
+.hyperframes/
+renders/

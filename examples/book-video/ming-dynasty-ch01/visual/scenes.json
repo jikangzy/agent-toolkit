@@ -1,0 +1,65 @@
+{
+  "status": "silent_visual_preview",
+  "duration": 82,
+  "fps": 30,
+  "audio": "none",
+  "timing": "provisional",
+  "scenes": [
+    {
+      "id": "S01",
+      "start": 0,
+      "duration": 9,
+      "asset": "MD08_LATE_YUAN_VILLAGE",
+      "narration_id": "N01"
+    },
+    {
+      "id": "S02",
+      "start": 9,
+      "duration": 12,
+      "asset": "MD02_FAMILY_MEAL",
+      "narration_id": "N02"
+    },
+    {
+      "id": "S03",
+      "start": 21,
+      "duration": 12,
+      "asset": "MD03_FAMILY_LOSS",
+      "narration_id": "N03"
+    },
+    {
+      "id": "S04",
+      "start": 33,
+      "duration": 10,
+      "asset": "MD01_TEMPLE_ARRIVAL",
+      "narration_id": "N04"
+    },
+    {
+      "id": "S05",
+      "start": 43,
+      "duration": 13,
+      "asset": "MD06_WANDERING_ROAD",
+      "narration_id": "N05"
+    },
+    {
+      "id": "S06",
+      "start": 56,
+      "duration": 8,
+      "asset": "MD05_RETURN_TO_TEMPLE",
+      "narration_id": "N06"
+    },
+    {
+      "id": "S07",
+      "start": 64,
+      "duration": 11,
+      "asset": "MD07_STORM_LOOKOUT",
+      "narration_id": "N07"
+    },
+    {
+      "id": "S08",
+      "start": 75,
+      "duration": 7,
+      "asset": "MD07_STORM_LOOKOUT",
+      "narration_id": "N08"
+    }
+  ]
+}

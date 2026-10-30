@@ -1,0 +1,160 @@
+{
+  "stage": "silent_visual_preview",
+  "timing": "provisional",
+  "hyperframes": "0.8.221",
+  "gsap": "3.14.2",
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "filesScanned": 1,
+    "_meta": {
+      "version": "0.8.221",
+      "updateAvailable": false
+    }
+  },
+  "validate": {
+    "ok": true,
+    "errors": [],
+    "warnings": [],
+    "contrastFailures": 0
+  },
+  "inspect": {
+    "schemaVersion": 1,
+    "duration": 82,
+    "samples": [
+      4,
+      15,
+      27,
+      38,
+      40,
+      49,
+      60,
+      69,
+      79
+    ],
+    "tolerance": 2,
+    "strict": false,
+    "collapseStatic": true,
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "issueCount": 0,
+    "totalIssueCount": 0,
+    "truncated": false,
+    "issues": [],
+    "_meta": {
+      "version": "0.8.221",
+      "updateAvailable": false,
+      "deprecated": true
+    }
+  },
+  "render": {
+    "status": "PASS",
+    "video_sha256": "bd631f7fe1ab3a7abb6319e344b35b6d5509571bb912d5fec94d7a921954b105",
+    "bytes": 32601655,
+    "duration": "82.000000",
+    "codec": "h264",
+    "width": 1080,
+    "height": 1920,
+    "fps": "30/1",
+    "frames": "2460",
+    "audio_streams": 0,
+    "full_decode": "PASS",
+    "black_intervals": [],
+    "assets": [
+      {
+        "id": "MD01_TEMPLE_ARRIVAL",
+        "sha256": "b1b7fc4d125a101a12384d3b9ffee82e2feafc73664517ae439c7bd3ca58f28b",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD02_FAMILY_MEAL",
+        "sha256": "f652984613459e32449413b803a25facb3ccc963e99a0102f2caafb1009b261e",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD03_FAMILY_LOSS",
+        "sha256": "03ce49247d45041fc3924c991ee0f11e3891c95f25c3395b2ca57e6b57eb1a10",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD04_TEMPLE_PORRIDGE",
+        "sha256": "9664fd8b35d0f0766f36503966018fcbc6540335c96430afaea5eb500c55ad3d",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD05_RETURN_TO_TEMPLE",
+        "sha256": "db569d9c5250b1233dc98f83815220349552466c4dd763a4b30e51ede7a8f6ff",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD06_WANDERING_ROAD",
+        "sha256": "d4d132819fd74e648329448f813545ecafafda1be0e70776c8450900ffb7148d",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD07_STORM_LOOKOUT",
+        "sha256": "f13fba5268560397eb056896f9a2c6ccf53757f95c1244992c4addd66ab48f13",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD08_LATE_YUAN_VILLAGE",
+        "sha256": "4b77eb463bddaa0c247f8844a1ecdefee67ffe67734d1274c8739552f6ee93b0",
+        "width": 1672,
+        "height": 941,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD11_ZHU_YUANZHANG_CHARACTER_FRONT",
+        "sha256": "e277cf791587725d4836ecbc3d00c44d4d12395184bce2ebbdbcd42a92cad7cb",
+        "width": 540,
+        "height": 1024,
+        "decode": "PASS"
+      },
+      {
+        "id": "MD11_ZHU_YUANZHANG_CHARACTER_SHEET",
+        "sha256": "f37ab02365ada59176d7f7f24b947b04dd07ebb94de0c632f6937517a1d13340",
+        "width": 1536,
+        "height": 1024,
+        "decode": "PASS"
+      }
+    ],
+    "contact_sheet": ".local/visual/contact-sheet.jpg"
+  },
+  "browser_audit": {
+    "tweens": 129,
+    "captions": 18,
+    "failures": [],
+    "mapMaxRouteError": 0.1001817852536044,
+    "fonts": {
+      "song": true,
+      "kai": true,
+      "sans": true
+    }
+  },
+  "source_sha256": {
+    "index.html": "f074170da36a33a990306ac9cac90959fe3aad804e620c8b32332320b538fbeb",
+    "visual/film.css": "8c4dc723517339419113b2ea1ca2deb31b2b8fbff35d72056016f1286e26850b",
+    "visual/film.js": "10b49ee1834908fc2793579de8e00c9530be2e1c3505bc69e722050c48973093",
+    "visual/map.js": "62f999edfc62236b2e0e31a352d0dc39b4761c82dc358986ae23612d9f4d1b2e",
+    "visual/audio-provider.js": "32e25ff33890fbaf455e503fc2b7d8e6965940925484f745bf84bf1838e1d2db"
+  }
+}
