@@ -25,10 +25,39 @@ class HyperFramesTests(unittest.TestCase):
         self.assertIn('window.__timelines', html)
         self.assertIn('scale:1.18', html)
 
-    def test_scene_three_has_different_camera_motion(self):
-        html = composition({**SCENE, 'id': 'scene_003'}, 13)
-        self.assertIn('x:65', html)
-        self.assertNotIn('scale:1.18', html)
+    def test_scene_three_uses_its_storyboard_zoom_hint(self):
+        scene = {
+            **SCENE,
+            'id': 'scene_003',
+            'visual': {'type': 'broll', 'motion': 'slow zoom-in'},
+        }
+        html = composition(scene, 13)
+        self.assertIn('scale:1.04', html)
+        self.assertIn('scale:1.18', html)
+        self.assertNotIn('x:65', html)
+
+    def test_storyboard_motion_maps_to_camera_tweens(self):
+        cases = [
+            ('slow pan right', ('x:-65', 'x:65')),
+            ('slow pan left', ('x:65', 'x:-65')),
+            ('slow pan down', ('y:-65', 'y:65')),
+            ('slow pan up', ('y:65', 'y:-65')),
+            ('slow zoom-out', ('scale:1.18', 'scale:1.04')),
+            ('slow zoom-in', ('scale:1.04', 'scale:1.18')),
+            ('slow push-in', ('scale:1.04', 'scale:1.18')),
+            ('slow pan forward', ('scale:1.04', 'scale:1.18')),
+            ('slow fade-in', ('opacity:0', 'opacity:1')),
+        ]
+        for motion, expected in cases:
+            with self.subTest(motion=motion):
+                scene = {
+                    **SCENE,
+                    'id': 'scene_777',
+                    'visual': {'type': 'broll', 'motion': motion},
+                }
+                html = composition(scene, 10)
+                for fragment in expected:
+                    self.assertIn(fragment, html)
 
     def test_html_escapes_storyboard_content(self):
         html = composition({**SCENE, 'onscreen_text': '<script> & text'}, 10)
